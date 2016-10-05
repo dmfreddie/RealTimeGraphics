@@ -1,5 +1,5 @@
 #pragma once
-
+#define TGL_TARGET_GL_4_4
 #include <scene/scene_fwd.hpp>
 #include <tygra/WindowViewDelegate.hpp>
 #include <tgl/tgl.h>
@@ -99,5 +99,5 @@ private:
 	GLuint vertex_vbo;
 	GLuint element_vbo; // VertexBufferObject for the elements (indices)
 	GLuint vao; // VertexArrayObject for the shape's vertex array settings
-
+	GLuint ubo = 0;
 };

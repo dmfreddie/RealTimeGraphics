@@ -1,4 +1,4 @@
-#version 330
+#version 440
 
 uniform mat4 projection_view_model_xform;
 uniform mat4 model_xform;

@@ -239,11 +239,37 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	// make nothing active (deactivate vbo and vao)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	GLuint pointLightIndex = glGetUniformBlockIndex(shaderProgram, "PointLightingBlock");
+	GLuint spotLightIndex = glGetUniformBlockIndex(shaderProgram, "SpotLightingBlock");
+	GLuint dirLightIndex = glGetUniformBlockIndex(shaderProgram, "DirectionalLightBlock");
+
+	glUniformBlockBinding(shaderProgram, pointLightIndex, 0);
+	glUniformBlockBinding(shaderProgram, spotLightIndex, 1);
+	glUniformBlockBinding(shaderProgram, dirLightIndex, 2);
+
+
+	glGenBuffers(1, &ubo);
+
+	glBindBuffer(GL_UNIFORM_BUFFER, ubo);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(SpotLight) * 7 + sizeof(PointLight) * 22 + sizeof(DirectionalLight) * 3, NULL, GL_DYNAMIC_DRAW);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+	glBindBufferRange(GL_UNIFORM_BUFFER, 0, ubo, 0, sizeof(PointLight) * 22);
+	glBindBufferRange(GL_UNIFORM_BUFFER, 1, ubo, sizeof(PointLight) * 22, sizeof(SpotLight) * 7);
+	glBindBufferRange(GL_UNIFORM_BUFFER, 2, ubo, sizeof(SpotLight) * 7 + sizeof(PointLight) * 22, sizeof(DirectionalLight) * 3);
 	glBindVertexArray(0);
 
 #pragma endregion //Load the mesh into buffers
 
 
+
+#pragma region // Uniform Buffers
+
+	
+
+
+#pragma endregion 
 
 
 
@@ -286,6 +312,12 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		light.castShadow = spotLightRef[i].getCastShadow();
 		spotLights.push_back(light);
 	}
+	//TODO: FIX
+	glBindVertexArray(vao);
+	glBindBuffer(GL_UNIFORM_BUFFER, ubo);
+	glBufferSubData( GL_UNIFORM_BUFFER, 2 * sizeof(glm::vec3) + 2 * sizeof(float), (3 * sizeof(glm::vec3) + 3 * sizeof(float)) * spotLights.size(), glm::value_ptr(spotLights[0].position));
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+	glBindVertexArray(0);
 #pragma endregion // Textures and Lights
 
 
@@ -315,7 +347,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 
-	glClearColor(0.f, 0.f, 0.25f, 0.f);
+	glClearColor(0.556f, 0.822f, 1.0f, 0.f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	GLint viewport_size[4];
@@ -439,6 +471,12 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	glBindVertexArray(vao);
 
+	glBindBuffer(GL_UNIFORM_BUFFER, ubo);
+	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(PointLight) * pointLights.size(), glm::value_ptr(pointLights[0].position));
+	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(PointLight) * 22, sizeof(SpotLight) * spotLights.size(), glm::value_ptr(spotLights[0].position));
+	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(PointLight) * 22 + sizeof(SpotLight) *7, sizeof(DirectionalLight) * directionalLights.size(), glm::value_ptr(directionalLights[0].direction));
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
 #pragma region Draw call for rendering normal sponza
 
 	//float outLineInt = 0;
@@ -476,6 +514,7 @@ void MyView::windowViewRender(tygra::Window * window)
 		glBindTexture(GL_TEXTURE_2D, textures["resource:///hex.png"]);
 		glUniform1i(glGetUniformLocation(shaderProgram, "diffuse_texture"), 0);
 		
+		glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
 
 		glDrawElementsBaseVertex(GL_TRIANGLES, mesh.element_count, GL_UNSIGNED_INT, (GLvoid*)(mesh.first_element_index * sizeof(int)), mesh.first_vertex_index);
 
