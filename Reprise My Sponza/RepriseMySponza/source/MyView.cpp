@@ -410,8 +410,8 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	for (unsigned int i = 0; i < scene_->getAllSpotLights().size(); ++i)
 	{
-		std::string pos = "SpotLightSources[" + std::to_string(i) + "].position";
-		std::string range = "SpotLightSources[" + std::to_string(i) + "].range";
+		std::string pos =		"SpotLightSources[" + std::to_string(i) + "].position";
+		std::string range =		"SpotLightSources[" + std::to_string(i) + "].range";
 		std::string direction = "SpotLightSources[" + std::to_string(i) + "].direction";
 		std::string coneAngle = "SpotLightSources[" + std::to_string(i) + "].coneAngle";
 		std::string intensity = "SpotLightSources[" + std::to_string(i) + "].intensity";
