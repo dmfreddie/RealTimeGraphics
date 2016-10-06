@@ -313,11 +313,11 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		spotLights.push_back(light);
 	}
 	//TODO: FIX
-	glBindVertexArray(vao);
-	glBindBuffer(GL_UNIFORM_BUFFER, ubo);
-	glBufferSubData( GL_UNIFORM_BUFFER, 2 * sizeof(glm::vec3) + 2 * sizeof(float), (3 * sizeof(glm::vec3) + 3 * sizeof(float)) * spotLights.size(), glm::value_ptr(spotLights[0].position));
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);
-	glBindVertexArray(0);
+	//glBindVertexArray(vao);
+	//glBindBuffer(GL_UNIFORM_BUFFER, ubo);
+	//glBufferSubData( GL_UNIFORM_BUFFER, 2 * sizeof(glm::vec3) + 2 * sizeof(float), (3 * sizeof(glm::vec3) + 3 * sizeof(float)) * spotLights.size(), glm::value_ptr(spotLights[0].position));
+	//glBindBuffer(GL_UNIFORM_BUFFER, 0);
+	//glBindVertexArray(0);
 #pragma endregion // Textures and Lights
 
 
@@ -514,7 +514,7 @@ void MyView::windowViewRender(tygra::Window * window)
 		glBindTexture(GL_TEXTURE_2D, textures["resource:///hex.png"]);
 		glUniform1i(glGetUniformLocation(shaderProgram, "diffuse_texture"), 0);
 		
-		glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
+		//glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
 
 		glDrawElementsBaseVertex(GL_TRIANGLES, mesh.element_count, GL_UNSIGNED_INT, (GLvoid*)(mesh.first_element_index * sizeof(int)), mesh.first_vertex_index);
 
