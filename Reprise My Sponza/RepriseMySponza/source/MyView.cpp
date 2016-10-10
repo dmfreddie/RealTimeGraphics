@@ -426,8 +426,8 @@ void MyView::windowViewRender(tygra::Window * window)
 	auto& spotLightRef = scene_->getAllSpotLights();
 	for (unsigned int i = 0; i < spotLightRef.size(); ++i)
 	{
-		spotLights[i].direction = (const glm::vec3&) spotLightRef[i].getDirection();
-		spotLights[i].intensity = (const glm::vec3&) spotLightRef[i].getIntensity();
+		spotLights[i].direction = glm::normalize((const glm::vec3&) spotLightRef[i].getDirection());
+		spotLights[i].intensity =(const glm::vec3&) spotLightRef[i].getIntensity();
 		spotLights[i].position = (const glm::vec3&) spotLightRef[i].getPosition();
 		spotLights[i].coneAngle = spotLightRef[i].getConeAngleDegrees();
 		spotLights[i].range = spotLightRef[i].getRange();
