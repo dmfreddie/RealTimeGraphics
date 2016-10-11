@@ -7,6 +7,7 @@ in vec3 vertex_position;
 in vec3 vertex_normal;
 in vec3 vertex_tangent;
 in vec2 vertex_texcoord;
+in mat4 model_matrix;
 
 out vec3 vertexPos;
 out vec3 vertexNormal;

@@ -23,6 +23,7 @@ struct MeshGL
 	GLuint first_element_index;
 	GLuint element_count;
 	GLuint first_vertex_index;
+	int mesh_id;
 };
 
 struct PointLight
@@ -98,6 +99,7 @@ private:
 
 	GLuint vertex_vbo;
 	GLuint element_vbo; // VertexBufferObject for the elements (indices)
+	GLuint instance_vbo; // VertexBufferObject for the model xforms
 	GLuint vao; // VertexArrayObject for the shape's vertex array settings
 	GLuint ubo = 0;
 };

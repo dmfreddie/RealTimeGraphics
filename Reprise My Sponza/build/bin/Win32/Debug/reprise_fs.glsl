@@ -160,7 +160,7 @@ vec3 DirLightCalc(vec3 colour)
 {
 	for (int i = 0; i < MAX_DIR_LIGHTS; i++)
 	{
-		vec3 L = normalize(DirectionalLightSources[i].position - vertexPos);
+		vec3 L = normalize(DirectionalLightSources[i].direction);
 		float scaler = max(0.0, dot(L, normalize(vertexNormal)));
 
 		if (scaler == 0)

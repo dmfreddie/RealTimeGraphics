@@ -224,18 +224,42 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		GL_STATIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+	glGenBuffers(1, &instance_vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
+	glBufferData(GL_ARRAY_BUFFER,
+		scene_->getAllInstances().size() * sizeof(glm::mat4),
+		nullptr,
+		GL_DYNAMIC_DRAW
+	);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	// http://www.informit.com/articles/article.aspx?p=2033340&seqNum=5
+	// https://www.google.co.uk/webhp?sourceid=chrome-instant&ion=1&espv=2&ie=UTF-8#q=gldrawelementsinstancedbasevertex+example
+	// http://ogldev.atspace.co.uk/www/tutorial33/tutorial33.html
+	// http://programming4.us/multimedia/8306.aspx
+	// https://www.google.co.uk/webhp?sourceid=chrome-instant&ion=1&espv=2&ie=UTF-8#q=glVertexAttribDivisor
+	// https://eat.tees.ac.uk/bbcswebdav/pid-2461234-dt-content-rid-4939281_1/courses/COM3050-N-BF1-2016/rtg-com3050-lecture-api_usage_progressed.pdf
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vertex_vbo);
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), TGL_BUFFER_OFFSET_OF(Vertex, position));
+	glVertexAttribDivisor(0, 1);
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), TGL_BUFFER_OFFSET_OF(Vertex, normal));
+	glVertexAttribDivisor(1, 1);
 	glEnableVertexAttribArray(2);
 	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), TGL_BUFFER_OFFSET_OF(Vertex, tangent));
+	glVertexAttribDivisor(2, 1);
 	glEnableVertexAttribArray(3);
 	glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), TGL_BUFFER_OFFSET_OF(Vertex, texcoord));
+	glVertexAttribDivisor(3, 1);
+
+	glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
+	glEnableVertexAttribArray(4);
+	glVertexAttribPointer(4, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), TGL_BUFFER_OFFSET_OF(Vertex, texcoord));
+	glVertexAttribDivisor(4, 1);
 
 	// make nothing active (deactivate vbo and vao)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -517,9 +541,23 @@ void MyView::windowViewRender(tygra::Window * window)
 		//glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
 
 		glDrawElementsBaseVertex(GL_TRIANGLES, mesh.element_count, GL_UNSIGNED_INT, (GLvoid*)(mesh.first_element_index * sizeof(int)), mesh.first_vertex_index);
-
+		//glDrawElementsInstancedBaseVertex(GL_TRANGLES)
 
 	}
-
+	std::vector<glm::mat4> matrices;
+	int firstMatIdx = 0;
+	glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
+	for (const auto &ent1 : meshes_) {
+		auto& instances = scene_->getInstancesByMeshId(ent1.first);
+		firstMatIdx = matrices.size();
+		for (const auto& instance : instances)
+		{
+			const auto& inst = scene_->getInstanceById(instance);
+			glm::mat4 model_xform = glm::mat4((const glm::mat4x3&)inst.getTransformationMatrix());
+			matrices.push_back(model_xform);
+		}
+		glBufferSubData(GL_ARRAY_BUFFER, matrices.size() * sizeof(glm::mat4), sizeof(glm::mat4) * instances.size(), glm::value_ptr(matrices[firstMatIdx]));
+		glDrawElementsInstancedBaseVertex(GL_TRIANGLES, ent1.second.element_count, GL_UNSIGNED_INT, (GLvoid*)(ent1.second.first_element_index * sizeof(int)), instances.size(), ent1.second.first_vertex_index);
+	}
 #pragma endregion 
 }
