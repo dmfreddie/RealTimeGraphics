@@ -48,7 +48,9 @@ struct SpotLight
 struct DirectionalLight
 {
 	glm::vec3 direction;
+	float padding1;
 	glm::vec3 intensity;
+	float padding2;
 };
 
 class MyView : public tygra::WindowViewDelegate
@@ -86,6 +88,7 @@ private:
 	std::map<scene::MeshId, MeshGL> meshes_;
 	std::unordered_map<std::string, GLuint> textures;
 	std::unordered_map<std::string, GLuint> uniforms;
+	std::vector<glm::mat4> matrices;
 
 	std::vector<PointLight> pointLights;
 	std::vector<DirectionalLight> directionalLights;

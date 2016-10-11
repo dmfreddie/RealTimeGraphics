@@ -90,8 +90,7 @@ void MyView::Getuniforms()
 	also performed on start because the locations of the uniforms wont need to be changed per frame so it will speed up the rendering function as it
 	doesn't need to perform unnessacary computation.
 	*/
-	uniforms["projection_view_model_xform"] = glGetUniformLocation(shaderProgram, "projection_view_model_xform");
-	uniforms["model_xform"] = glGetUniformLocation(shaderProgram, "model_xform");
+	uniforms["projection_view_xform"] = glGetUniformLocation(shaderProgram, "projection_view_xform");
 	uniforms["vertex_diffuse_colour"] = glGetUniformLocation(shaderProgram, "vertex_diffuse_colour");
 	uniforms["vertex_ambient_colour"] = glGetUniformLocation(shaderProgram, "vertex_ambient_colour");
 	uniforms["vertex_spec_colour"] = glGetUniformLocation(shaderProgram, "vertex_spec_colour");
@@ -147,9 +146,9 @@ void MyView::ResetConsole()
 	system("cls");
 	//Application instructions
 	std::cout << "ABOUT" << std::endl;
-	std::cout << "Spice My Sponza - 3D Graphics Programming ICA1" << std::endl;
-	std::cout << "P4011584 - Frederic Babord 2015 - 2016" << std::endl << std::endl;
-	std::cout << "Submission date: 04th February 2016" << std::endl << std::endl;
+	std::cout << "Reprise My Sponza - Real Time Graphics ICA1" << std::endl;
+	std::cout << "P4011584 - Frederic Babord 2016 - 2017" << std::endl << std::endl;
+	/*std::cout << "Submission date: 04th February 2016" << std::endl << std::endl;
 	std::cout << "INSTRUCTIONS" << std::endl;
 	std::cout << "Press F1 to enable camera animation." << std::endl;
 	std::cout << "Press F2 to view the direction of the vertex normals." << std::endl;
@@ -160,7 +159,7 @@ void MyView::ResetConsole()
 	std::cout << "Press E to increase the normal line length." << std::endl;
 	std::cout << "Press Z to reduce the specular intensity smudge factor." << std::endl;
 	std::cout << "Press C to increase the specular intensity smudge factor." << std::endl << std::endl;
-	std::cout << "Press Esc to Close." << std::endl << std::endl;
+	std::cout << "Press Esc to Close." << std::endl << std::endl;*/
 	CompileShaders();
 }
 
@@ -208,6 +207,19 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		newMesh.element_count = elementsArr.size();
 	}
 
+	for (const auto &ent1 : meshes_)
+	{
+
+		auto& instances = scene_->getInstancesByMeshId(ent1.first);
+
+		for (const auto& instance : instances)
+		{
+			const auto& inst = scene_->getInstanceById(instance);
+			glm::mat4 model_xform = glm::mat4((const glm::mat4x3&)inst.getTransformationMatrix());
+			matrices.push_back(model_xform);
+		}
+	}
+
 	glGenBuffers(1, &vertex_vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vertex_vbo);
 	glBufferData(GL_ARRAY_BUFFER,
@@ -227,18 +239,16 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glGenBuffers(1, &instance_vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
 	glBufferData(GL_ARRAY_BUFFER,
-		scene_->getAllInstances().size() * sizeof(glm::mat4),
-		nullptr,
+		matrices.size() * sizeof(glm::mat4),
+		matrices.data(),
 		GL_DYNAMIC_DRAW
 	);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-	// http://www.informit.com/articles/article.aspx?p=2033340&seqNum=5
-	// https://www.google.co.uk/webhp?sourceid=chrome-instant&ion=1&espv=2&ie=UTF-8#q=gldrawelementsinstancedbasevertex+example
-	// http://ogldev.atspace.co.uk/www/tutorial33/tutorial33.html
-	// http://programming4.us/multimedia/8306.aspx
-	// https://www.google.co.uk/webhp?sourceid=chrome-instant&ion=1&espv=2&ie=UTF-8#q=glVertexAttribDivisor
-	// https://eat.tees.ac.uk/bbcswebdav/pid-2461234-dt-content-rid-4939281_1/courses/COM3050-N-BF1-2016/rtg-com3050-lecture-api_usage_progressed.pdf
+	GLenum err = glGetError();
+	if(err != GL_NO_ERROR)
+		std::cerr << err << std::endl;
+
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_vbo);
@@ -256,15 +266,26 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), TGL_BUFFER_OFFSET_OF(Vertex, texcoord));
 	glVertexAttribDivisor(3, 1);
 
+	err = glGetError();
+	if (err != GL_NO_ERROR)
+		std::cerr << err << std::endl;
+
 	glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
-	glEnableVertexAttribArray(4);
-	glVertexAttribPointer(4, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), TGL_BUFFER_OFFSET_OF(Vertex, texcoord));
-	glVertexAttribDivisor(4, 1);
+	for (unsigned int i = 0; i < 4; i++) {
+		glEnableVertexAttribArray(4 + i);
+		glVertexAttribPointer(4 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), //sizeof(GLfloat) * 4,
+			(const GLvoid*)(sizeof(GLfloat) * i * 4));
+		glVertexAttribDivisor(4 + i, 1);
+	}
+	err = glGetError();
+	if (err != GL_NO_ERROR)
+		std::cerr << err << std::endl;
+
 
 	// make nothing active (deactivate vbo and vao)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-	GLuint pointLightIndex = glGetUniformBlockIndex(shaderProgram, "PointLightingBlock");
+	/*GLuint pointLightIndex = glGetUniformBlockIndex(shaderProgram, "PointLightingBlock");
 	GLuint spotLightIndex = glGetUniformBlockIndex(shaderProgram, "SpotLightingBlock");
 	GLuint dirLightIndex = glGetUniformBlockIndex(shaderProgram, "DirectionalLightBlock");
 
@@ -281,9 +302,13 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	glBindBufferRange(GL_UNIFORM_BUFFER, 0, ubo, 0, sizeof(PointLight) * 22);
 	glBindBufferRange(GL_UNIFORM_BUFFER, 1, ubo, sizeof(PointLight) * 22, sizeof(SpotLight) * 7);
-	glBindBufferRange(GL_UNIFORM_BUFFER, 2, ubo, sizeof(SpotLight) * 7 + sizeof(PointLight) * 22, sizeof(DirectionalLight) * 3);
+	glBindBufferRange(GL_UNIFORM_BUFFER, 2, ubo, sizeof(SpotLight) * 7 + sizeof(PointLight) * 22, sizeof(DirectionalLight) * 3);*/
 	glBindVertexArray(0);
 
+
+	err = glGetError();
+	if (err != GL_NO_ERROR)
+		std::cerr << err << std::endl;
 #pragma endregion //Load the mesh into buffers
 
 
@@ -344,7 +369,9 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	//glBindVertexArray(0);
 #pragma endregion // Textures and Lights
 
-
+	err = glGetError();
+	if (err != GL_NO_ERROR)
+		std::cerr << err << std::endl;
 
 }
 
@@ -409,7 +436,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	GLuint lightPosID = 0;
 	GLuint lightRangeID = 0;
 	GLuint lightIntensityID = 0;
-
+	
 	for (unsigned int i = 0; i < scene_->getAllPointLights().size(); ++i)
 	{
 		std::string pos = "LightSource[" + std::to_string(i) + "].position";
@@ -495,19 +522,19 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	glBindVertexArray(vao);
 
-	glBindBuffer(GL_UNIFORM_BUFFER, ubo);
+	/*glBindBuffer(GL_UNIFORM_BUFFER, ubo);
 	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(PointLight) * pointLights.size(), glm::value_ptr(pointLights[0].position));
 	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(PointLight) * 22, sizeof(SpotLight) * spotLights.size(), glm::value_ptr(spotLights[0].position));
 	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(PointLight) * 22 + sizeof(SpotLight) *7, sizeof(DirectionalLight) * directionalLights.size(), glm::value_ptr(directionalLights[0].direction));
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);*/
 
 #pragma region Draw call for rendering normal sponza
 
 	//float outLineInt = 0;
 	//glUniform1f(uniforms["outline"], outLineInt);
 
-	glm::mat4 projection_view_mod_xform;
-	glm::mat4 inverse_normal_xform;
+	glm::mat4 projection_view_xform = projection_xform * view_xform;
+	glUniformMatrix4fv(uniforms["projection_view_xform"], 1, GL_FALSE, glm::value_ptr(projection_view_xform));
 
 	//Initialised to first element as there is no default constructor for a material
 	scene::Material material = scene_->getAllMaterials()[0];
@@ -515,18 +542,53 @@ void MyView::windowViewRender(tygra::Window * window)
 	/*
 	Populate the material uniform variables and the model uniform variables and then draw sponza normally
 	*/
-	for (const auto& instance : scene_->getAllInstances())
+	//for (const auto& instance : scene_->getAllInstances())
+	//{
+	//	glm::mat4 model_xform = glm::mat4((const glm::mat4x3&)instance.getTransformationMatrix());
+	//	const MeshGL& mesh = meshes_[instance.getMeshId()];
+
+
+	//	material = scene_->getMaterialById(instance.getMaterialId());
+
+	//	
+	//	//glUniformMatrix4fv(uniforms["model_xform"], 1, GL_FALSE, glm::value_ptr(model_xform));
+	//	glUniform3fv(uniforms["vertex_diffuse_colour"], 1, glm::value_ptr((const glm::mat3&)material.getDiffuseColour()));
+	//	glUniform3fv(uniforms["vertex_spec_colour"], 1, glm::value_ptr((const glm::mat3&)material.getSpecularColour()));
+	//	glUniform1f(uniforms["vertex_shininess"], material.getShininess());
+	//	glUniform1f(uniforms["is_vertex_shiney"], (float)material.isShiny());
+
+	//	glUniform1f(uniforms["has_diff_tex"], 1);
+
+	//	glActiveTexture(GL_TEXTURE0);
+	//	glBindTexture(GL_TEXTURE_2D, textures["resource:///hex.png"]);
+	//	glUniform1i(glGetUniformLocation(shaderProgram, "diffuse_texture"), 0);
+	//	
+	//	//glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
+
+	//	glDrawElementsBaseVertex(GL_TRIANGLES, mesh.element_count, GL_UNSIGNED_INT, (GLvoid*)(mesh.first_element_index * sizeof(int)), mesh.first_vertex_index);
+	//	//glDrawElementsInstancedBaseVertex(GL_TRANGLES)
+
+	//}
+
+	int counter = 0;
+	int firstMatCounter = 0;
+	for (const auto &mesh : meshes_) 
 	{
-		glm::mat4 model_xform = glm::mat4((const glm::mat4x3&)instance.getTransformationMatrix());
-		const MeshGL& mesh = meshes_[instance.getMeshId()];
+		
+		auto& instances = scene_->getInstancesByMeshId(mesh.first);
+		
+		for (const auto& instance : instances)
+		{
+			const auto& inst = scene_->getInstanceById(instance);
+			glm::mat4 model_xform = glm::mat4((const glm::mat4x3&)inst.getTransformationMatrix());
+			
+			matrices[counter] = model_xform;
+			counter++;
+		}
+		glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
+		glBufferSubData(GL_ARRAY_BUFFER, firstMatCounter *  sizeof(glm::mat4), sizeof(glm::mat4) * (instances.size()), glm::value_ptr(matrices[firstMatCounter]));
+		firstMatCounter = counter;
 
-		projection_view_mod_xform = projection_xform * view_xform * model_xform;
-		inverse_normal_xform = view_xform * model_xform;
-
-		material = scene_->getMaterialById(instance.getMaterialId());
-
-		glUniformMatrix4fv(uniforms["projection_view_model_xform"], 1, GL_FALSE, glm::value_ptr(projection_view_mod_xform));
-		glUniformMatrix4fv(uniforms["model_xform"], 1, GL_FALSE, glm::value_ptr(model_xform));
 		glUniform3fv(uniforms["vertex_diffuse_colour"], 1, glm::value_ptr((const glm::mat3&)material.getDiffuseColour()));
 		glUniform3fv(uniforms["vertex_spec_colour"], 1, glm::value_ptr((const glm::mat3&)material.getSpecularColour()));
 		glUniform1f(uniforms["vertex_shininess"], material.getShininess());
@@ -537,27 +599,9 @@ void MyView::windowViewRender(tygra::Window * window)
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, textures["resource:///hex.png"]);
 		glUniform1i(glGetUniformLocation(shaderProgram, "diffuse_texture"), 0);
-		
-		//glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
 
-		glDrawElementsBaseVertex(GL_TRIANGLES, mesh.element_count, GL_UNSIGNED_INT, (GLvoid*)(mesh.first_element_index * sizeof(int)), mesh.first_vertex_index);
-		//glDrawElementsInstancedBaseVertex(GL_TRANGLES)
-
-	}
-	std::vector<glm::mat4> matrices;
-	int firstMatIdx = 0;
-	glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
-	for (const auto &ent1 : meshes_) {
-		auto& instances = scene_->getInstancesByMeshId(ent1.first);
-		firstMatIdx = matrices.size();
-		for (const auto& instance : instances)
-		{
-			const auto& inst = scene_->getInstanceById(instance);
-			glm::mat4 model_xform = glm::mat4((const glm::mat4x3&)inst.getTransformationMatrix());
-			matrices.push_back(model_xform);
-		}
-		glBufferSubData(GL_ARRAY_BUFFER, matrices.size() * sizeof(glm::mat4), sizeof(glm::mat4) * instances.size(), glm::value_ptr(matrices[firstMatIdx]));
-		glDrawElementsInstancedBaseVertex(GL_TRIANGLES, ent1.second.element_count, GL_UNSIGNED_INT, (GLvoid*)(ent1.second.first_element_index * sizeof(int)), instances.size(), ent1.second.first_vertex_index);
+		const auto& meshGLData = mesh.second;
+		glDrawElementsInstancedBaseVertex(GL_TRIANGLES, meshGLData.element_count, GL_UNSIGNED_INT, (GLvoid*)(meshGLData.first_element_index * sizeof(int)), instances.size(), meshGLData.first_vertex_index);
 	}
 #pragma endregion 
 }
