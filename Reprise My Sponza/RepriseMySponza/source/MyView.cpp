@@ -255,16 +255,16 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glBindBuffer(GL_ARRAY_BUFFER, vertex_vbo);
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), TGL_BUFFER_OFFSET_OF(Vertex, position));
-	glVertexAttribDivisor(0, 1);
+	//glVertexAttribDivisor(0, 1);
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), TGL_BUFFER_OFFSET_OF(Vertex, normal));
-	glVertexAttribDivisor(1, 1);
+	//glVertexAttribDivisor(1, 1);
 	glEnableVertexAttribArray(2);
 	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), TGL_BUFFER_OFFSET_OF(Vertex, tangent));
-	glVertexAttribDivisor(2, 1);
+	//glVertexAttribDivisor(2, 1);
 	glEnableVertexAttribArray(3);
 	glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), TGL_BUFFER_OFFSET_OF(Vertex, texcoord));
-	glVertexAttribDivisor(3, 1);
+	//glVertexAttribDivisor(3, 1);
 
 	err = glGetError();
 	if (err != GL_NO_ERROR)
@@ -407,6 +407,7 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	//Use the initial shader program to render sponza normally
 	glUseProgram(shaderProgram);
+	glBindVertexArray(vao);
 
 	glm::mat4 projection_xform = glm::perspective(glm::radians(scene_->getCamera().getVerticalFieldOfViewInDegrees()), aspect_ratio, scene_->getCamera().getNearPlaneDistance(), scene_->getCamera().getFarPlaneDistance());
 	glm::mat4 view_xform = glm::lookAt((const glm::vec3&)scene_->getCamera().getPosition(), (const glm::vec3&)scene_->getCamera().getPosition() + (const glm::vec3&)scene_->getCamera().getDirection(), (const glm::vec3&)scene_->getUpDirection());
@@ -512,63 +513,16 @@ void MyView::windowViewRender(tygra::Window * window)
 		glUniform3fv(spotlightIntensityID, 1, glm::value_ptr(spotLights[i].intensity));
 	}
 
-
-	
-
-
 	glUniform3fv(uniforms["global_ambient_light"], 1, glm::value_ptr((const glm::vec3&)scene_->getAmbientLightIntensity()));
 
 #pragma endregion 
 
-	glBindVertexArray(vao);
-
-	/*glBindBuffer(GL_UNIFORM_BUFFER, ubo);
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(PointLight) * pointLights.size(), glm::value_ptr(pointLights[0].position));
-	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(PointLight) * 22, sizeof(SpotLight) * spotLights.size(), glm::value_ptr(spotLights[0].position));
-	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(PointLight) * 22 + sizeof(SpotLight) *7, sizeof(DirectionalLight) * directionalLights.size(), glm::value_ptr(directionalLights[0].direction));
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);*/
 
 #pragma region Draw call for rendering normal sponza
 
-	//float outLineInt = 0;
-	//glUniform1f(uniforms["outline"], outLineInt);
 
 	glm::mat4 projection_view_xform = projection_xform * view_xform;
 	glUniformMatrix4fv(uniforms["projection_view_xform"], 1, GL_FALSE, glm::value_ptr(projection_view_xform));
-
-	//Initialised to first element as there is no default constructor for a material
-	scene::Material material = scene_->getAllMaterials()[0];
-
-	/*
-	Populate the material uniform variables and the model uniform variables and then draw sponza normally
-	*/
-	//for (const auto& instance : scene_->getAllInstances())
-	//{
-	//	glm::mat4 model_xform = glm::mat4((const glm::mat4x3&)instance.getTransformationMatrix());
-	//	const MeshGL& mesh = meshes_[instance.getMeshId()];
-
-
-	//	material = scene_->getMaterialById(instance.getMaterialId());
-
-	//	
-	//	//glUniformMatrix4fv(uniforms["model_xform"], 1, GL_FALSE, glm::value_ptr(model_xform));
-	//	glUniform3fv(uniforms["vertex_diffuse_colour"], 1, glm::value_ptr((const glm::mat3&)material.getDiffuseColour()));
-	//	glUniform3fv(uniforms["vertex_spec_colour"], 1, glm::value_ptr((const glm::mat3&)material.getSpecularColour()));
-	//	glUniform1f(uniforms["vertex_shininess"], material.getShininess());
-	//	glUniform1f(uniforms["is_vertex_shiney"], (float)material.isShiny());
-
-	//	glUniform1f(uniforms["has_diff_tex"], 1);
-
-	//	glActiveTexture(GL_TEXTURE0);
-	//	glBindTexture(GL_TEXTURE_2D, textures["resource:///hex.png"]);
-	//	glUniform1i(glGetUniformLocation(shaderProgram, "diffuse_texture"), 0);
-	//	
-	//	//glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
-
-	//	glDrawElementsBaseVertex(GL_TRIANGLES, mesh.element_count, GL_UNSIGNED_INT, (GLvoid*)(mesh.first_element_index * sizeof(int)), mesh.first_vertex_index);
-	//	//glDrawElementsInstancedBaseVertex(GL_TRANGLES)
-
-	//}
 
 	int counter = 0;
 	int firstMatCounter = 0;
@@ -576,7 +530,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	{
 		
 		auto& instances = scene_->getInstancesByMeshId(mesh.first);
-		
+
 		for (const auto& instance : instances)
 		{
 			const auto& inst = scene_->getInstanceById(instance);
@@ -587,7 +541,8 @@ void MyView::windowViewRender(tygra::Window * window)
 		}
 		glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
 		glBufferSubData(GL_ARRAY_BUFFER, firstMatCounter *  sizeof(glm::mat4), sizeof(glm::mat4) * (instances.size()), glm::value_ptr(matrices[firstMatCounter]));
-		firstMatCounter = counter;
+		
+		scene::Material material = scene_->getMaterialById(scene_->getInstanceById(instances[0]).getMaterialId());
 
 		glUniform3fv(uniforms["vertex_diffuse_colour"], 1, glm::value_ptr((const glm::mat3&)material.getDiffuseColour()));
 		glUniform3fv(uniforms["vertex_spec_colour"], 1, glm::value_ptr((const glm::mat3&)material.getSpecularColour()));
@@ -600,8 +555,11 @@ void MyView::windowViewRender(tygra::Window * window)
 		glBindTexture(GL_TEXTURE_2D, textures["resource:///hex.png"]);
 		glUniform1i(glGetUniformLocation(shaderProgram, "diffuse_texture"), 0);
 
-		const auto& meshGLData = mesh.second;
-		glDrawElementsInstancedBaseVertex(GL_TRIANGLES, meshGLData.element_count, GL_UNSIGNED_INT, (GLvoid*)(meshGLData.first_element_index * sizeof(int)), instances.size(), meshGLData.first_vertex_index);
+		const auto& meshGLData = mesh.second; 
+		glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES, meshGLData.element_count, GL_UNSIGNED_INT, (GLvoid*)(meshGLData.first_element_index * sizeof(int)), instances.size(), meshGLData.first_vertex_index, firstMatCounter);
+		firstMatCounter = counter;
 	}
+
+
 #pragma endregion 
 }

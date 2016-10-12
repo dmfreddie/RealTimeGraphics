@@ -80,11 +80,11 @@ void main(void)
 {
 	vec3 final_colour = global_ambient_light * vertex_diffuse_colour;
 	final_colour = DirLightCalc(final_colour);
-	//final_colour = SpotLightCalc(final_colour);
-	//final_colour = PointLightCalc(final_colour);
+	final_colour = SpotLightCalc(final_colour);
+	final_colour = PointLightCalc(final_colour);
 
-	if (has_diff_tex > 0)
-		final_colour *= texture2D(diffuse_texture, text_coord).rgb;
+	/*if (has_diff_tex > 0)
+		final_colour *= texture2D(diffuse_texture, text_coord).rgb;*/
 
 	fragment_colour = vec4(final_colour, 1.0);
 }
@@ -175,18 +175,7 @@ vec3 DirLightCalc(vec3 colour)
 		else 
 			colour += DirectionalLightSources[i].intensity * diffuseMat;
 	}
-/*
-	for (int i = 0; i < MAX_DIR_LIGHTS; i++)
-	{
-		vec3 surfaceToLight = normalize(DirectionalLightSources[i].direction.xyz);
-		
-		float diffuseCoefficient = max(0.0, dot(vertexNormal, surfaceToLight));
-		vec3 diffuse = diffuseCoefficient * DirectionalLightSources[i].intensity;
 
-		vec3 specular = SpecularLight(surfaceToLight, diffuse);
-		
-		colour += (diffuse + specular);
-	}*/
 	return colour;
 }
 

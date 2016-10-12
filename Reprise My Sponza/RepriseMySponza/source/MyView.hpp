@@ -23,7 +23,6 @@ struct MeshGL
 	GLuint first_element_index;
 	GLuint element_count;
 	GLuint first_vertex_index;
-	int mesh_id;
 };
 
 struct PointLight
