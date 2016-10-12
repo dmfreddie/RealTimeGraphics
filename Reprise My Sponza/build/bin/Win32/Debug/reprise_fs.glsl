@@ -1,13 +1,5 @@
 #version 440
 
-struct PointLight
-{
-	vec3 position;
-	float range;
-	vec3 intensity;
-	float padding;
-};
-
 struct SpotLight
 {
 	vec3 position;
@@ -17,8 +9,30 @@ struct SpotLight
 	vec3 intensity;
 	bool castShadow;
 };
-uniform SpotLight SpotLightSources[22];
+
+layout (std140, binding = 0) uniform SpotLightBlock {
+  SpotLight spotLights [15];
+};
+
 uniform float MAX_SPOT_LIGHTS;
+
+
+
+struct PointLight
+{
+	vec3 position;
+	float range;
+	vec3 intensity;
+	float padding;
+};
+
+layout (std140, binding = 1) uniform PointLightBlock {
+  PointLight pointLights [22];
+};
+
+uniform float MAX_LIGHTS;
+
+
 
 struct DirectionalLight
 {
@@ -28,11 +42,15 @@ struct DirectionalLight
 	float padding2;
 };
 
-uniform PointLight LightSource[22];
-uniform float MAX_LIGHTS;
-
-uniform DirectionalLight DirectionalLightSources[4];
+layout (std140, binding = 2) uniform DirectionalLightBlock {
+  DirectionalLight directionalLights [5];
+};
 uniform float MAX_DIR_LIGHTS;
+
+
+
+
+
 
 uniform vec3 camera_position;
 
@@ -66,7 +84,7 @@ vec3 SpotLightCalc(vec3 colour);
 
 void main(void)
 {
-	vec3 final_colour = global_ambient_light * vertex_diffuse_colour;
+	vec3 final_colour = /*global_ambient_light **/ vertex_diffuse_colour;
 	final_colour = DirLightCalc(final_colour);
 	final_colour = SpotLightCalc(final_colour);
 	final_colour = PointLightCalc(final_colour);
@@ -104,16 +122,18 @@ Also call the specular for that light and add it to the diffuse value
 @param currentLight - the light which the diffuse calculations need to be applied on
 @param attenuation - the distance the light has an effect on
 @return diffuseColour - the end result of the individual lights lighting calculation
+//TODO : Refactor
 */
 vec3 DiffuseLight(int currentLight, float attenuation)
 {
-	vec3 L = normalize(LightSource[currentLight].position - vertexPos);
+	SpotLight spotLight = spotLights[currentLight];
+	vec3 L = normalize(spotLight.position - vertexPos);
 	float scaler = max(0, dot(L, normalize(vertexNormal))) * attenuation;
 
 	if (scaler == 0)
 		return vec3(0, 0, 0);
 
-	vec3 diffuse_intensity = LightSource[currentLight].intensity * scaler;
+	vec3 diffuse_intensity = spotLight.intensity * scaler;
 	vec3 diffuseMat = diffuse_intensity;
 
 
@@ -122,19 +142,21 @@ vec3 DiffuseLight(int currentLight, float attenuation)
 		return  diffuseMat + SpecularLight(L, diffuse_intensity);
 	}
 
-	return  LightSource[currentLight].intensity * diffuseMat;
+	return  spotLight.intensity * diffuseMat;
 }
 /*
 Calculate the colour value for the light and add it to the total light for the pixel
 @param currentLight - the light which the diffuse calculations need to be applied on
 @return colour - the final colour for theat fragment after all point lighting calculations
+TODO: Refactor
 */
 vec3 PointLightCalc(vec3 colour)
 {
 	for (int i = 0; i < MAX_LIGHTS; i++)
 	{
-		float dist = distance(LightSource[i].position, vertexPos);
-		float attenuation = 1 - smoothstep(0.0, LightSource[i].range, dist);
+		SpotLight spotLight = spotLights[i];
+		float dist = distance(spotLight.position, vertexPos);
+		float attenuation = 1 - smoothstep(0.0, spotLight.range, dist);
 
 		if (attenuation > 0)
 		{
@@ -148,20 +170,22 @@ vec3 DirLightCalc(vec3 colour)
 {
 	for (int i = 0; i < MAX_DIR_LIGHTS; i++)
 	{
-		vec3 L = normalize(DirectionalLightSources[i].direction);
+		DirectionalLight dir = directionalLights[i];
+
+		vec3 L = normalize(dir.direction);
 		float scaler = max(0.0, dot(L, normalize(vertexNormal)));
 
 		if (scaler == 0)
 			continue;
 
-		vec3 diffuse_intensity = DirectionalLightSources[i].intensity * scaler;
+		vec3 diffuse_intensity = dir.intensity * scaler;
 		vec3 diffuseMat = diffuse_intensity;
 
 
 		if (is_vertex_shiney > 0)
 			colour += diffuseMat + SpecularLight(L, diffuse_intensity);
 		else 
-			colour += DirectionalLightSources[i].intensity * diffuseMat;
+			colour +=dir.intensity * diffuseMat;
 	}
 
 	return colour;
@@ -171,7 +195,7 @@ vec3 SpotLightCalc(vec3 colour)
 {
 	for (int i = 0; i < MAX_SPOT_LIGHTS; i++)
 	{
-		SpotLight spot = SpotLightSources[i];
+		SpotLight spot = spotLights[i];
 		
 		vec3 LightToPixel = normalize(vertexPos - spot.position);
 		float SpotFactor = dot(LightToPixel, normalize(-spot.direction));

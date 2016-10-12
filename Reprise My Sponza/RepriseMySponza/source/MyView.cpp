@@ -277,7 +277,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 
-	glBindVertexArray(0);
+	
 
 
 	err = glGetError();
@@ -285,6 +285,46 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		std::cerr << err << std::endl;
 #pragma endregion //Load the mesh into buffers
 
+
+
+#pragma region 
+
+
+	glGenBuffers(1, &spotLightUBO);
+	glBindBuffer(GL_UNIFORM_BUFFER, spotLightUBO);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(SpotLight) * MAX_SPOTLIGHTS, nullptr, GL_DYNAMIC_DRAW);
+
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, spotLightUBO);
+	glUniformBlockBinding(
+		shaderProgram,
+		glGetUniformBlockIndex(shaderProgram, "SpotLightBlock"),
+		0);
+	
+
+	glGenBuffers(1, &pointLightUBO);
+	glBindBuffer(GL_UNIFORM_BUFFER, pointLightUBO);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(PointLight) * MAX_POINTLIGHTS, nullptr, GL_DYNAMIC_DRAW);
+
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, pointLightUBO);
+	glUniformBlockBinding(
+		shaderProgram,
+		glGetUniformBlockIndex(shaderProgram, "PointLightBlock"),
+		1);
+
+
+	glGenBuffers(1, &directionalLightUBO);
+	glBindBuffer(GL_UNIFORM_BUFFER, directionalLightUBO);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(DirectionalLight) * MAX_DIRECTIONALLIGHTS, nullptr, GL_DYNAMIC_DRAW);
+
+	glBindBufferBase(GL_UNIFORM_BUFFER, 2, directionalLightUBO);
+	glUniformBlockBinding(
+		shaderProgram,
+		glGetUniformBlockIndex(shaderProgram, "DirectionalLightBlock"),
+		2);
+
+#pragma endregion //UBOs
+
+	glBindVertexArray(0);
 
 
 
@@ -397,7 +437,11 @@ void MyView::windowViewRender(tygra::Window * window)
 		pointLights[i].intensity = (const glm::vec3&)scene_->getAllPointLights()[i].getIntensity();
 	}
 
-	GLuint lightPosID = 0;
+	glBindBuffer(GL_UNIFORM_BUFFER, pointLightUBO);
+	glBufferSubData(GL_UNIFORM_BUFFER, 0,  sizeof(PointLight) * pointLights.size(), &pointLights);
+
+
+	/*GLuint lightPosID = 0;
 	GLuint lightRangeID = 0;
 	GLuint lightIntensityID = 0;
 	
@@ -413,7 +457,7 @@ void MyView::windowViewRender(tygra::Window * window)
 		glUniform1f(lightRangeID, pointLights[i].range);
 		lightIntensityID = glGetUniformLocation(shaderProgram, intensity.c_str());
 		glUniform3fv(lightIntensityID, 1, glm::value_ptr(pointLights[i].intensity));
-	}
+	}*/
 
 	auto& directionalLightRef = scene_->getAllDirectionalLights();
 	for (unsigned int i = 0; i < directionalLightRef.size(); ++i)
@@ -422,7 +466,10 @@ void MyView::windowViewRender(tygra::Window * window)
 		directionalLights[i].intensity = (const glm::vec3&) directionalLightRef[i].getIntensity();
 	}
 
-	GLuint dirlightDirectionID = 0;
+	glBindBuffer(GL_UNIFORM_BUFFER, directionalLightUBO);
+	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(DirectionalLight) * directionalLights.size(), &directionalLights);
+
+	/*GLuint dirlightDirectionID = 0;
 	GLuint dirLightIntensityID = 0;
 
 	for (unsigned int i = 0; i < scene_->getAllDirectionalLights().size(); ++i)
@@ -435,7 +482,7 @@ void MyView::windowViewRender(tygra::Window * window)
 
 		glUniform3fv(dirlightDirectionID, 1, glm::value_ptr(directionalLights[i].direction));
 		glUniform3fv(dirLightIntensityID, 1, glm::value_ptr(directionalLights[i].intensity));
-	}
+	}*/
 
 
 	auto& spotLightRef = scene_->getAllSpotLights();
@@ -449,7 +496,9 @@ void MyView::windowViewRender(tygra::Window * window)
 		spotLights[i].castShadow = spotLightRef[i].getCastShadow();
 	}
 
-	GLuint spotlightPosID = 0;
+	glBindBuffer(GL_UNIFORM_BUFFER, spotLightUBO);
+	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(SpotLight) * spotLights.size(), &spotLights);
+	/*GLuint spotlightPosID = 0;
 	GLuint spotlightRangeID = 0;
 	GLuint spotlightIntensityID = 0;
 	GLuint spotlightConeAngleID = 0;
@@ -474,7 +523,7 @@ void MyView::windowViewRender(tygra::Window * window)
 		glUniform3fv(spotlightdirectionID, 1, glm::value_ptr(spotLights[i].direction));
 		glUniform1f(spotlightConeAngleID, spotLights[i].coneAngle);
 		glUniform3fv(spotlightIntensityID, 1, glm::value_ptr(spotLights[i].intensity));
-	}
+	}*/
 
 	glUniform3fv(uniforms["global_ambient_light"], 1, glm::value_ptr((const glm::vec3&)scene_->getAmbientLightIntensity()));
 

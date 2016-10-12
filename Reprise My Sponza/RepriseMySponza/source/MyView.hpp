@@ -10,6 +10,10 @@
 #include <unordered_map>
 #include <map>
 
+#define MAX_SPOTLIGHTS 15
+#define MAX_POINTLIGHTS 22
+#define MAX_DIRECTIONALLIGHTS 5
+
 struct Vertex
 {
 	glm::vec3 position;
@@ -102,5 +106,7 @@ private:
 	GLuint element_vbo; // VertexBufferObject for the elements (indices)
 	GLuint instance_vbo; // VertexBufferObject for the model xforms
 	GLuint vao; // VertexArrayObject for the shape's vertex array settings
-	GLuint ubo = 0;
+	GLuint spotLightUBO = 0;
+	GLuint pointLightUBO = 0;
+	GLuint directionalLightUBO = 0;
 };
