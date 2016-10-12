@@ -65,8 +65,7 @@ void MyView::CompileShaders()
 	glAttachShader(shaderProgram, vertex_shader);
 	glBindAttribLocation(shaderProgram, 0, "vertex_position");
 	glBindAttribLocation(shaderProgram, 1, "vertex_normal");
-	glBindAttribLocation(shaderProgram, 2, "vertex_tangent");
-	glBindAttribLocation(shaderProgram, 3, "vertex_texcoord");
+	glBindAttribLocation(shaderProgram, 2, "vertex_texcoord");
 	glDeleteShader(vertex_shader);
 	glAttachShader(shaderProgram, fragment_shader);
 	glDeleteShader(fragment_shader);
@@ -183,7 +182,6 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		const auto& positions = source_mesh.getPositionArray();
 		const auto& elementsArr = source_mesh.getElementArray();
 		const auto& normals = source_mesh.getNormalArray();
-		//const auto& tangents = source_mesh.getTangentArray();
 		const auto& text_coord = source_mesh.getTextureCoordinateArray();
 
 		bool hasTexCood = text_coord.size() > 0;
@@ -196,7 +194,6 @@ void MyView::windowViewWillStart(tygra::Window * window)
 			Vertex vertex;
 			vertex.position = (const glm::vec3&)positions[i];
 			vertex.normal = (const glm::vec3&)normals[i];
-			//vertex.tangent = (const glm::vec3&)tangents[i];
 			if(hasTexCood)
 				vertex.texcoord = (const glm::vec2&)text_coord[i];
 			vertices.push_back(vertex);
@@ -255,16 +252,10 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glBindBuffer(GL_ARRAY_BUFFER, vertex_vbo);
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), TGL_BUFFER_OFFSET_OF(Vertex, position));
-	//glVertexAttribDivisor(0, 1);
 	glEnableVertexAttribArray(1);
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), TGL_BUFFER_OFFSET_OF(Vertex, normal));
-	//glVertexAttribDivisor(1, 1);
 	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), TGL_BUFFER_OFFSET_OF(Vertex, tangent));
-	//glVertexAttribDivisor(2, 1);
-	glEnableVertexAttribArray(3);
-	glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), TGL_BUFFER_OFFSET_OF(Vertex, texcoord));
-	//glVertexAttribDivisor(3, 1);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), TGL_BUFFER_OFFSET_OF(Vertex, texcoord));
 
 	err = glGetError();
 	if (err != GL_NO_ERROR)
@@ -272,10 +263,10 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
 	for (unsigned int i = 0; i < 4; i++) {
-		glEnableVertexAttribArray(4 + i);
-		glVertexAttribPointer(4 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), //sizeof(GLfloat) * 4,
+		glEnableVertexAttribArray(3 + i);
+		glVertexAttribPointer(3 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), //sizeof(GLfloat) * 4,
 			(const GLvoid*)(sizeof(GLfloat) * i * 4));
-		glVertexAttribDivisor(4 + i, 1);
+		glVertexAttribDivisor(3 + i, 1);
 	}
 	err = glGetError();
 	if (err != GL_NO_ERROR)
@@ -285,24 +276,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	// make nothing active (deactivate vbo and vao)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-	/*GLuint pointLightIndex = glGetUniformBlockIndex(shaderProgram, "PointLightingBlock");
-	GLuint spotLightIndex = glGetUniformBlockIndex(shaderProgram, "SpotLightingBlock");
-	GLuint dirLightIndex = glGetUniformBlockIndex(shaderProgram, "DirectionalLightBlock");
 
-	glUniformBlockBinding(shaderProgram, pointLightIndex, 0);
-	glUniformBlockBinding(shaderProgram, spotLightIndex, 1);
-	glUniformBlockBinding(shaderProgram, dirLightIndex, 2);
-
-
-	glGenBuffers(1, &ubo);
-
-	glBindBuffer(GL_UNIFORM_BUFFER, ubo);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(SpotLight) * 7 + sizeof(PointLight) * 22 + sizeof(DirectionalLight) * 3, NULL, GL_DYNAMIC_DRAW);
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-	glBindBufferRange(GL_UNIFORM_BUFFER, 0, ubo, 0, sizeof(PointLight) * 22);
-	glBindBufferRange(GL_UNIFORM_BUFFER, 1, ubo, sizeof(PointLight) * 22, sizeof(SpotLight) * 7);
-	glBindBufferRange(GL_UNIFORM_BUFFER, 2, ubo, sizeof(SpotLight) * 7 + sizeof(PointLight) * 22, sizeof(DirectionalLight) * 3);*/
 	glBindVertexArray(0);
 
 
@@ -313,12 +287,6 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 
 
-#pragma region // Uniform Buffers
-
-	
-
-
-#pragma endregion 
 
 
 
@@ -361,12 +329,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		light.castShadow = spotLightRef[i].getCastShadow();
 		spotLights.push_back(light);
 	}
-	//TODO: FIX
-	//glBindVertexArray(vao);
-	//glBindBuffer(GL_UNIFORM_BUFFER, ubo);
-	//glBufferSubData( GL_UNIFORM_BUFFER, 2 * sizeof(glm::vec3) + 2 * sizeof(float), (3 * sizeof(glm::vec3) + 3 * sizeof(float)) * spotLights.size(), glm::value_ptr(spotLights[0].position));
-	//glBindBuffer(GL_UNIFORM_BUFFER, 0);
-	//glBindVertexArray(0);
+
 #pragma endregion // Textures and Lights
 
 	err = glGetError();

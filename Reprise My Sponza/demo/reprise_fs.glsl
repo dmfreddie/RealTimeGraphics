@@ -28,18 +28,6 @@ struct DirectionalLight
 	float padding2;
 };
 
-//layout(std140, binding = 0) uniform PointLightingBlock {
-//  PointLight pointLights [22];
-//};
-
-//layout(std140, binding = 1) uniform SpotLightingBlock {
-//  SpotLight spotLights [10];
-//};
-
-//layout(std140, binding = 2) uniform DirectionalLightBlock {
-//  DirectionalLight directionalLights [5];
-//};
-
 uniform PointLight LightSource[22];
 uniform float MAX_LIGHTS;
 
