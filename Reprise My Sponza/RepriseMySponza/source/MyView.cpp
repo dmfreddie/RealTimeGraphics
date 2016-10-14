@@ -8,8 +8,6 @@
 #include <iostream>
 #include <cassert>
 
-//TODO: Use radians
-
 MyView::MyView() : shaderProgram(0)
 {
 }
@@ -77,8 +75,6 @@ void MyView::CompileShaders()
 
 	Getuniforms();
 }
-
-
 
 void MyView::Getuniforms()
 {
@@ -168,7 +164,54 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	ResetConsole();
 
+#pragma region
 
+	//Load the textures into a map of handles
+	LoadTexture("resource:///hex.png");
+
+	//Create the light vector so there will be memory already reserved that can just be overwritten if values have been changed. This has been done on 
+	//start for effiences in the constant render loop function.
+	auto& pointLightsRef = scene_->getAllPointLights();
+	for (unsigned int i = 0; i < pointLightsRef.size(); ++i)
+	{
+		PointLight light;
+		light.position = (const glm::vec3&) pointLightsRef[i].getPosition();
+		light.range = pointLightsRef[i].getRange();
+		light.intensity = (const glm::vec3&) pointLightsRef[i].getIntensity();
+		light.padding = 0.0f;
+		pointLights.data[i] = light;
+	}
+
+
+
+	auto& directionalLightRef = scene_->getAllDirectionalLights();
+	for (unsigned int i = 0; i < directionalLightRef.size(); ++i)
+	{
+		DirectionalLight light;
+		light.direction = (const glm::vec3&) directionalLightRef[i].getDirection();
+		light.intensity = (const glm::vec3&) directionalLightRef[i].getIntensity();
+		light.padding1 = 0.0f;
+		light.padding2 = 0.0f;
+		directionalLights.data[i] = light;
+	}
+
+
+
+	auto& spotLightRef = scene_->getAllSpotLights();
+	for (unsigned int i = 0; i < spotLightRef.size(); ++i)
+	{
+		SpotLight light;
+		light.direction = (const glm::vec3&) spotLightRef[i].getDirection();
+		light.intensity = (const glm::vec3&) spotLightRef[i].getIntensity();
+		light.position = (const glm::vec3&) spotLightRef[i].getPosition();
+		light.coneAngle = spotLightRef[i].getConeAngleDegrees();
+		light.range = spotLightRef[i].getRange();
+		light.castShadow = spotLightRef[i].getCastShadow();
+		spotLights.data[i] = light;
+	}
+
+
+#pragma endregion // Textures and Lights
 
 #pragma region
 	scene::GeometryBuilder builder;
@@ -264,16 +307,16 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
 	for (unsigned int i = 0; i < 4; i++) {
 		glEnableVertexAttribArray(3 + i);
-		glVertexAttribPointer(3 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), //sizeof(GLfloat) * 4,
+		glVertexAttribPointer(3 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4),
 			(const GLvoid*)(sizeof(GLfloat) * i * 4));
 		glVertexAttribDivisor(3 + i, 1);
 	}
+
 	err = glGetError();
 	if (err != GL_NO_ERROR)
 		std::cerr << err << std::endl;
 
 
-	// make nothing active (deactivate vbo and vao)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 
@@ -287,90 +330,75 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 
 
+
+#pragma region
+	int commandInt = 0;
+	int counter = 0;
+	int baseInstance = 0;
+	for (const auto &mesh : meshes_)
+	{
+		const auto& mesh_ = mesh.second;
+		auto& instances = scene_->getInstancesByMeshId(mesh.first);
+		for (const auto& instance : instances)
+			counter++;
+
+		commands[commandInt].vertexCount = mesh_.element_count;
+		commands[commandInt].instanceCount = instances.size(); // Just testing with 1 instance, ATM.
+		commands[commandInt].firstVertex = mesh_.first_element_index;// +sizeof(GLuint);
+		commands[commandInt].baseVertex = mesh_.first_vertex_index;
+		commands[commandInt].baseInstance = baseInstance; // Shouldn't impact testing?
+		commandInt++;
+		baseInstance = counter;
+	}
+
+	glGenBuffers(1, &commandBuffer);
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
+	glBufferData(GL_DRAW_INDIRECT_BUFFER,
+		sizeof(commands),
+		&commands,
+		GL_DYNAMIC_DRAW
+	);
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+#pragma endregion // Command Data
+
+
+
 #pragma region 
 
 
 	glGenBuffers(1, &spotLightUBO);
 	glBindBuffer(GL_UNIFORM_BUFFER, spotLightUBO);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(SpotLight) * MAX_SPOTLIGHTS, nullptr, GL_DYNAMIC_DRAW);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(SpotLights), &spotLights, GL_STREAM_DRAW);
 
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, spotLightUBO);
-	glUniformBlockBinding(
-		shaderProgram,
-		glGetUniformBlockIndex(shaderProgram, "SpotLightBlock"),
-		0);
+	glUniformBlockBinding( shaderProgram, glGetUniformBlockIndex(shaderProgram, "SpotLightBlock"), 0);
 	
 
 	glGenBuffers(1, &pointLightUBO);
 	glBindBuffer(GL_UNIFORM_BUFFER, pointLightUBO);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(PointLight) * MAX_POINTLIGHTS, nullptr, GL_DYNAMIC_DRAW);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(PointLights), &pointLights, GL_STREAM_DRAW);
 
 	glBindBufferBase(GL_UNIFORM_BUFFER, 1, pointLightUBO);
-	glUniformBlockBinding(
-		shaderProgram,
-		glGetUniformBlockIndex(shaderProgram, "PointLightBlock"),
-		1);
+	glUniformBlockBinding(shaderProgram, glGetUniformBlockIndex(shaderProgram, "PointLightBlock"), 1);
 
 
 	glGenBuffers(1, &directionalLightUBO);
 	glBindBuffer(GL_UNIFORM_BUFFER, directionalLightUBO);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(DirectionalLight) * MAX_DIRECTIONALLIGHTS, nullptr, GL_DYNAMIC_DRAW);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(DirectionalLights), &directionalLights, GL_STREAM_DRAW);
 
 	glBindBufferBase(GL_UNIFORM_BUFFER, 2, directionalLightUBO);
-	glUniformBlockBinding(
-		shaderProgram,
-		glGetUniformBlockIndex(shaderProgram, "DirectionalLightBlock"),
-		2);
+	glUniformBlockBinding(shaderProgram,glGetUniformBlockIndex(shaderProgram, "DirectionalLightBlock"), 2);
 
 #pragma endregion //UBOs
 
 	glBindVertexArray(0);
 
+	
 
 
 
 
-#pragma region
 
-	//Load the textures into a map of handles
-	LoadTexture("resource:///hex.png");
-	/*LoadTexture("diff1.png");
-	LoadTexture("spec1.png");
-	LoadTexture("spec2.png");
-*/
-	//Create the light vector so there will be memory already reserved that can just be overwritten if values have been changed. This has been done on 
-	//start for effiences in the constant render loop function.
-	auto& pointLightsRef = scene_->getAllPointLights();
-	for (unsigned int i = 0; i < pointLightsRef.size(); ++i)
-	{
-		PointLight light;
-		light.position = (const glm::vec3&) pointLightsRef[i].getPosition();
-		light.range = pointLightsRef[i].getRange();
-		light.intensity = (const glm::vec3&) pointLightsRef[i].getIntensity();
-		pointLights.push_back(light);
-	}
-	auto& directionalLightRef = scene_->getAllDirectionalLights();
-	for (unsigned int i = 0; i < directionalLightRef.size(); ++i)
-	{
-		DirectionalLight light;
-		light.direction = (const glm::vec3&) directionalLightRef[i].getDirection();
-		light.intensity = (const glm::vec3&) directionalLightRef[i].getIntensity();
-		directionalLights.push_back(light);
-	}
-	auto& spotLightRef = scene_->getAllSpotLights();
-	for (unsigned int i = 0; i < spotLightRef.size(); ++i)
-	{
-		SpotLight light;
-		light.direction = (const glm::vec3&) spotLightRef[i].getDirection();
-		light.intensity = (const glm::vec3&) spotLightRef[i].getIntensity();
-		light.position = (const glm::vec3&) spotLightRef[i].getPosition();
-		light.coneAngle = spotLightRef[i].getConeAngleDegrees();
-		light.range = spotLightRef[i].getRange();
-		light.castShadow = spotLightRef[i].getCastShadow();
-		spotLights.push_back(light);
-	}
-
-#pragma endregion // Textures and Lights
 
 	err = glGetError();
 	if (err != GL_NO_ERROR)
@@ -430,100 +458,46 @@ void MyView::windowViewRender(tygra::Window * window)
 	glUniform1f(uniforms["MAX_SPOT_LIGHTS"], (GLfloat)scene_->getAllSpotLights().size());
 	glUniform1f(uniforms["MAX_DIR_LIGHTS"], (GLfloat)scene_->getAllDirectionalLights().size());
 
-	for (unsigned int i = 0; i < scene_->getAllPointLights().size(); ++i)
-	{
-		pointLights[i].position = (const glm::vec3&)scene_->getAllPointLights()[i].getPosition();
-		pointLights[i].range = scene_->getAllPointLights()[i].getRange();
-		pointLights[i].intensity = (const glm::vec3&)scene_->getAllPointLights()[i].getIntensity();
-	}
-
-	glBindBuffer(GL_UNIFORM_BUFFER, pointLightUBO);
-	glBufferSubData(GL_UNIFORM_BUFFER, 0,  sizeof(PointLight) * pointLights.size(), &pointLights);
-
-
-	/*GLuint lightPosID = 0;
-	GLuint lightRangeID = 0;
-	GLuint lightIntensityID = 0;
 	
-	for (unsigned int i = 0; i < scene_->getAllPointLights().size(); ++i)
-	{
-		std::string pos = "LightSource[" + std::to_string(i) + "].position";
-		std::string range = "LightSource[" + std::to_string(i) + "].range";
-		std::string intensity = "LightSource[" + std::to_string(i) + "].intensity";
-
-		lightPosID = glGetUniformLocation(shaderProgram, pos.c_str());
-		glUniform3fv(lightPosID, 1, glm::value_ptr(pointLights[i].position));
-		lightRangeID = glGetUniformLocation(shaderProgram, range.c_str());
-		glUniform1f(lightRangeID, pointLights[i].range);
-		lightIntensityID = glGetUniformLocation(shaderProgram, intensity.c_str());
-		glUniform3fv(lightIntensityID, 1, glm::value_ptr(pointLights[i].intensity));
-	}*/
-
-	auto& directionalLightRef = scene_->getAllDirectionalLights();
-	for (unsigned int i = 0; i < directionalLightRef.size(); ++i)
-	{
-		directionalLights[i].direction = (const glm::vec3&) directionalLightRef[i].getDirection();
-		directionalLights[i].intensity = (const glm::vec3&) directionalLightRef[i].getIntensity();
-	}
-
-	glBindBuffer(GL_UNIFORM_BUFFER, directionalLightUBO);
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(DirectionalLight) * directionalLights.size(), &directionalLights);
-
-	/*GLuint dirlightDirectionID = 0;
-	GLuint dirLightIntensityID = 0;
-
-	for (unsigned int i = 0; i < scene_->getAllDirectionalLights().size(); ++i)
-	{
-		std::string dir = "DirectionalLightSources[" + std::to_string(i) + "].direction";
-		std::string intensity = "DirectionalLightSources[" + std::to_string(i) + "].intensity";
-
-		dirlightDirectionID = glGetUniformLocation(shaderProgram, dir.c_str());
-		dirLightIntensityID = glGetUniformLocation(shaderProgram, intensity.c_str());
-
-		glUniform3fv(dirlightDirectionID, 1, glm::value_ptr(directionalLights[i].direction));
-		glUniform3fv(dirLightIntensityID, 1, glm::value_ptr(directionalLights[i].intensity));
-	}*/
-
 
 	auto& spotLightRef = scene_->getAllSpotLights();
 	for (unsigned int i = 0; i < spotLightRef.size(); ++i)
 	{
-		spotLights[i].direction = glm::normalize((const glm::vec3&) spotLightRef[i].getDirection());
-		spotLights[i].intensity =(const glm::vec3&) spotLightRef[i].getIntensity();
-		spotLights[i].position = (const glm::vec3&) spotLightRef[i].getPosition();
-		spotLights[i].coneAngle = spotLightRef[i].getConeAngleDegrees();
-		spotLights[i].range = spotLightRef[i].getRange();
-		spotLights[i].castShadow = spotLightRef[i].getCastShadow();
+		spotLights.data[i].direction = glm::normalize((const glm::vec3&) spotLightRef[i].getDirection());
+		spotLights.data[i].intensity = (const glm::vec3&) spotLightRef[i].getIntensity();
+		spotLights.data[i].position = (const glm::vec3&) spotLightRef[i].getPosition();
+		spotLights.data[i].coneAngle = spotLightRef[i].getConeAngleDegrees();
+		spotLights.data[i].range = spotLightRef[i].getRange();
+		spotLights.data[i].castShadow = spotLightRef[i].getCastShadow();
 	}
 
+
 	glBindBuffer(GL_UNIFORM_BUFFER, spotLightUBO);
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(SpotLight) * spotLights.size(), &spotLights);
-	/*GLuint spotlightPosID = 0;
-	GLuint spotlightRangeID = 0;
-	GLuint spotlightIntensityID = 0;
-	GLuint spotlightConeAngleID = 0;
-	GLuint spotlightdirectionID = 0;
+	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(SpotLights), &spotLights);
 
-	for (unsigned int i = 0; i < scene_->getAllSpotLights().size(); ++i)
+	for (unsigned int i = 0; i < scene_->getAllPointLights().size(); ++i)
 	{
-		std::string pos =		"SpotLightSources[" + std::to_string(i) + "].position";
-		std::string range =		"SpotLightSources[" + std::to_string(i) + "].range";
-		std::string direction = "SpotLightSources[" + std::to_string(i) + "].direction";
-		std::string coneAngle = "SpotLightSources[" + std::to_string(i) + "].coneAngle";
-		std::string intensity = "SpotLightSources[" + std::to_string(i) + "].intensity";
+		pointLights.data[i].position = (const glm::vec3&)scene_->getAllPointLights()[i].getPosition();
+		pointLights.data[i].range = scene_->getAllPointLights()[i].getRange();
+		pointLights.data[i].intensity = (const glm::vec3&)scene_->getAllPointLights()[i].getIntensity();
+	}
+	glBindBuffer(GL_UNIFORM_BUFFER, pointLightUBO);
+	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(PointLights), &pointLights.data);
 
-		spotlightPosID = glGetUniformLocation(shaderProgram, pos.c_str());
-		spotlightRangeID = glGetUniformLocation(shaderProgram, range.c_str());
-		spotlightIntensityID = glGetUniformLocation(shaderProgram, intensity.c_str());
-		spotlightConeAngleID = glGetUniformLocation(shaderProgram, coneAngle.c_str());
-		spotlightdirectionID = glGetUniformLocation(shaderProgram, direction.c_str());
+	auto& directionalLightRef = scene_->getAllDirectionalLights();
+	for (unsigned int i = 0; i < directionalLightRef.size(); ++i)
+	{
+		directionalLights.data[i].direction = (const glm::vec3&) directionalLightRef[i].getDirection();
+		directionalLights.data[i].padding1 = 0.0f;
+		directionalLights.data[i].intensity = (const glm::vec3&) directionalLightRef[i].getIntensity();
+		directionalLights.data[i].padding2 = 0.0f;
+	}
 
-		glUniform3fv(spotlightPosID, 1, glm::value_ptr(spotLights[i].position));
-		glUniform1f(spotlightRangeID, spotLights[i].range);
-		glUniform3fv(spotlightdirectionID, 1, glm::value_ptr(spotLights[i].direction));
-		glUniform1f(spotlightConeAngleID, spotLights[i].coneAngle);
-		glUniform3fv(spotlightIntensityID, 1, glm::value_ptr(spotLights[i].intensity));
-	}*/
+	glBindBuffer(GL_UNIFORM_BUFFER, directionalLightUBO);
+	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(DirectionalLights), &directionalLights);
+
+
+	
 
 	glUniform3fv(uniforms["global_ambient_light"], 1, glm::value_ptr((const glm::vec3&)scene_->getAmbientLightIntensity()));
 
@@ -567,11 +541,20 @@ void MyView::windowViewRender(tygra::Window * window)
 		glBindTexture(GL_TEXTURE_2D, textures["resource:///hex.png"]);
 		glUniform1i(glGetUniformLocation(shaderProgram, "diffuse_texture"), 0);
 
-		const auto& meshGLData = mesh.second; 
-		glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES, meshGLData.element_count, GL_UNSIGNED_INT, (GLvoid*)(meshGLData.first_element_index * sizeof(int)), instances.size(), meshGLData.first_vertex_index, firstMatCounter);
-		firstMatCounter = counter;
+		/*const auto& meshGLData = mesh.second; 
+		glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES, 
+			meshGLData.element_count, 
+			GL_UNSIGNED_INT, 
+			(GLvoid*)(meshGLData.first_element_index * sizeof(int)), 
+			instances.size(), 
+			meshGLData.first_vertex_index, 
+			firstMatCounter);
+		firstMatCounter = counter;*/
 	}
-
+		
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
+	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, meshes_.size(), 0);
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 
 #pragma endregion 
 }

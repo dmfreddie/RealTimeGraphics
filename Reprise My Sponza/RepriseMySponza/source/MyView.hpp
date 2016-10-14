@@ -14,6 +14,17 @@
 #define MAX_POINTLIGHTS 22
 #define MAX_DIRECTIONALLIGHTS 5
 
+// FUCKING INDIRECT BUFFER
+
+struct DrawElementsIndirectCommand
+{
+	GLuint vertexCount;
+	GLuint instanceCount;
+	GLuint firstVertex;
+	GLuint baseVertex;
+	GLuint baseInstance;
+};
+
 struct Vertex
 {
 	glm::vec3 position;
@@ -32,9 +43,14 @@ struct PointLight
 {
 	glm::vec3 position;
 	float range;
-	glm::vec3 direction;
-	float field_of_view;
 	glm::vec3 intensity;
+	float padding;
+
+};
+
+struct PointLights
+{
+	PointLight data[22];
 };
 
 struct SpotLight
@@ -47,12 +63,22 @@ struct SpotLight
 	bool castShadow;
 };
 
+struct SpotLights
+{
+	SpotLight data[15];
+};
+
 struct DirectionalLight
 {
 	glm::vec3 direction;
 	float padding1;
 	glm::vec3 intensity;
 	float padding2;
+};
+
+struct DirectionalLights
+{
+	DirectionalLight data[5];
 };
 
 class MyView : public tygra::WindowViewDelegate
@@ -91,10 +117,12 @@ private:
 	std::unordered_map<std::string, GLuint> textures;
 	std::unordered_map<std::string, GLuint> uniforms;
 	std::vector<glm::mat4> matrices;
+	
+	DrawElementsIndirectCommand commands[30];
 
-	std::vector<PointLight> pointLights;
-	std::vector<DirectionalLight> directionalLights;
-	std::vector<SpotLight> spotLights;
+	PointLights pointLights;
+	DirectionalLights directionalLights;
+	SpotLights spotLights;
 
 	GLuint shaderProgram;
 	GLuint vertex_shader;
@@ -106,7 +134,8 @@ private:
 	GLuint element_vbo; // VertexBufferObject for the elements (indices)
 	GLuint instance_vbo; // VertexBufferObject for the model xforms
 	GLuint vao; // VertexArrayObject for the shape's vertex array settings
-	GLuint spotLightUBO = 0;
-	GLuint pointLightUBO = 0;
-	GLuint directionalLightUBO = 0;
+	GLuint spotLightUBO;
+	GLuint pointLightUBO;
+	GLuint directionalLightUBO;
+	GLuint commandBuffer;
 };

@@ -11,7 +11,7 @@ struct SpotLight
 };
 
 layout (std140, binding = 0) uniform SpotLightBlock {
-  SpotLight spotLights [15];
+	SpotLight spotLights [15];
 };
 
 uniform float MAX_SPOT_LIGHTS;
@@ -26,8 +26,8 @@ struct PointLight
 	float padding;
 };
 
-layout (std140, binding = 1) uniform PointLightBlock {
-  PointLight pointLights [22];
+layout (std140, binding=1) uniform PointLightBlock {
+	PointLight pointLights [22];
 };
 
 uniform float MAX_LIGHTS;
@@ -43,7 +43,7 @@ struct DirectionalLight
 };
 
 layout (std140, binding = 2) uniform DirectionalLightBlock {
-  DirectionalLight directionalLights [5];
+	DirectionalLight directionalLights [5];
 };
 uniform float MAX_DIR_LIGHTS;
 
@@ -84,7 +84,7 @@ vec3 SpotLightCalc(vec3 colour);
 
 void main(void)
 {
-	vec3 final_colour = /*global_ambient_light **/ vertex_diffuse_colour;
+	vec3 final_colour = global_ambient_light * vertex_diffuse_colour;
 	final_colour = DirLightCalc(final_colour);
 	final_colour = SpotLightCalc(final_colour);
 	final_colour = PointLightCalc(final_colour);
@@ -126,14 +126,14 @@ Also call the specular for that light and add it to the diffuse value
 */
 vec3 DiffuseLight(int currentLight, float attenuation)
 {
-	SpotLight spotLight = spotLights[currentLight];
-	vec3 L = normalize(spotLight.position - vertexPos);
+	PointLight pointLight = pointLights[currentLight];
+	vec3 L = normalize(pointLight.position - vertexPos);
 	float scaler = max(0, dot(L, normalize(vertexNormal))) * attenuation;
 
 	if (scaler == 0)
 		return vec3(0, 0, 0);
 
-	vec3 diffuse_intensity = spotLight.intensity * scaler;
+	vec3 diffuse_intensity = pointLight.intensity * scaler;
 	vec3 diffuseMat = diffuse_intensity;
 
 
@@ -142,7 +142,7 @@ vec3 DiffuseLight(int currentLight, float attenuation)
 		return  diffuseMat + SpecularLight(L, diffuse_intensity);
 	}
 
-	return  spotLight.intensity * diffuseMat;
+	return  pointLight.intensity * diffuseMat;
 }
 /*
 Calculate the colour value for the light and add it to the total light for the pixel
@@ -154,9 +154,9 @@ vec3 PointLightCalc(vec3 colour)
 {
 	for (int i = 0; i < MAX_LIGHTS; i++)
 	{
-		SpotLight spotLight = spotLights[i];
-		float dist = distance(spotLight.position, vertexPos);
-		float attenuation = 1 - smoothstep(0.0, spotLight.range, dist);
+		PointLight pointLight = pointLights[i];
+		float dist = distance(pointLight.position, vertexPos);
+		float attenuation = 1 - smoothstep(0.0, pointLight.range, dist);
 
 		if (attenuation > 0)
 		{
@@ -172,20 +172,8 @@ vec3 DirLightCalc(vec3 colour)
 	{
 		DirectionalLight dir = directionalLights[i];
 
-		vec3 L = normalize(dir.direction);
-		float scaler = max(0.0, dot(L, normalize(vertexNormal)));
-
-		if (scaler == 0)
-			continue;
-
-		vec3 diffuse_intensity = dir.intensity * scaler;
-		vec3 diffuseMat = diffuse_intensity;
-
-
-		if (is_vertex_shiney > 0)
-			colour += diffuseMat + SpecularLight(L, diffuse_intensity);
-		else 
-			colour +=dir.intensity * diffuseMat;
+		float fDiffuseIntensity = max(0.0, dot(normalize(vertexNormal), dir.direction));
+		colour += (dir.intensity * fDiffuseIntensity);
 	}
 
 	return colour;
@@ -197,33 +185,64 @@ vec3 SpotLightCalc(vec3 colour)
 	{
 		SpotLight spot = spotLights[i];
 		
-		vec3 LightToPixel = normalize(vertexPos - spot.position);
-		float SpotFactor = dot(LightToPixel, normalize(-spot.direction));
 
-		if (SpotFactor < cos(spot.coneAngle)) 
-		{
-			float dist = distance(spot.position, vertexPos);
-			float attenuation = 1 - smoothstep(0.0, spot.range, dist);
+		vec3 L = spot.position - vertexPos;
+		// Length of light vector (used for height attenuation).;
+		float distToLight = length(L);
+		// Normalize light vector.
+		L = normalize(L);
 
-			if (attenuation > 0)
-			{
-				vec3 L = normalize(spot.position - vertexPos);
-				float scaler = max(0, dot(L, normalize(vertexNormal))) * attenuation;
+		// Compute smoothed dual-cone effect.
+		float cosDir = dot(L, -spot.direction);
+		float spotEffect = smoothstep(cos(spot.coneAngle), cos(spot.coneAngle / 2), cosDir);
 
-				if (scaler == 0)
-					continue;
+		// Compute height attenuation based on distance from earlier.
+		float attenuation = smoothstep(spot.range, 0.0f, distToLight);
 
-				vec3 diffuse_intensity = spot.intensity * scaler;
-				vec3 diffuseMat = diffuse_intensity;
+		float scaler = max(0, dot(L, normalize(vertexNormal))) * attenuation;
+		vec3 diffuse_intensity = spot.intensity * scaler;
 
-				//diffuseMat *= diffuse_intensity;
+		
+		if (is_vertex_shiney > 0.0)
+			diffuse_intensity += SpecularLight(L, diffuse_intensity);
 
-				if (is_vertex_shiney > 0)
-					colour +=  (diffuseMat + SpecularLight(L, diffuse_intensity))* (1.0 - (1.0 - SpotFactor) * 1.0/(1.0 - spot.coneAngle));
-				else
-					colour +=  (spot.intensity * diffuseMat)* (1.0 - (1.0 - SpotFactor) * 1.0/(1.0 - spot.coneAngle));
-			}
-		}
+		colour += (diffuse_intensity * spotEffect * attenuation);
+
+
+
+
+
+
+		//vec3 LightToPixel = normalize(vertexPos - spot.position);
+		//float SpotFactor = dot(LightToPixel, normalize(-spot.direction));
+
+		//if (SpotFactor < cos(spot.coneAngle)) 
+		//{
+		//	float dist = distance(spot.position, vertexPos);
+		//	float attenuation = 1 - smoothstep(0.0, spot.range, dist);
+
+		//	float cosDir = dot(normalize(spot.position - vertexPos), -spot.direction);
+		//	float spotEffect = smoothstep(cos(spot.coneAngle), cos(spot.coneAngle/2), cosDir);
+
+		//	if (attenuation > 0)
+		//	{
+		//		vec3 L = normalize(spot.position - vertexPos);
+		//		float scaler = max(0, dot(L, normalize(vertexNormal))) * attenuation;
+
+		//		if (scaler == 0)
+		//			continue;
+
+		//		vec3 diffuse_intensity = spot.intensity * scaler;
+		//		vec3 diffuseMat = diffuse_intensity;
+
+		//		//diffuseMat *= diffuse_intensity;
+
+		//		if (is_vertex_shiney > 0)
+		//			colour +=  (diffuseMat + SpecularLight(L, diffuse_intensity)) * spotEffect;
+		//		else
+		//			colour +=  (spot.intensity * diffuseMat)* (1.0 - (1.0 - SpotFactor)) *spotEffect;
+		//	}
+		//}
 
 	}
 
