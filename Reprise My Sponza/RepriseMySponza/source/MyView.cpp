@@ -135,6 +135,42 @@ LoadTexture(std::string textureName)
 	}
 }
 
+void MyView::LoadTextureArray(std::vector<std::string>& textureNames)
+{
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glGenTextures(1, &texture_vbo);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, texture_vbo);
+	glUniform1i(3, 0);
+	//Create storage for the texture. (100 layers of 1x1 texels)
+	glTexStorage3D(GL_TEXTURE_2D_ARRAY,
+		1,                    //No mipmaps as textures are 1x1
+		GL_RGBA,              //Internal format
+		1024, 1024,                 //width,height
+		100                   //Number of layers
+		);
+
+	GLenum pixel_formats[] = { 0, GL_RED, GL_RG, GL_RGB, GL_RGBA };
+	for (unsigned int i = 0; i < textureNames.size(); ++i)
+	{
+		tygra::Image texture_image = tygra::createImageFromPngFile(textureNames[i]);
+
+		//Specify i-essim image
+		glTexSubImage3D(GL_TEXTURE_2D_ARRAY,
+			0,                     //Mipmap number
+			0, 0, i,                 //xoffset, yoffset, zoffset
+			1024, 1024, 1,                 //width, height, depth
+			GL_RGBA,                //format
+			GL_UNSIGNED_BYTE,      //type
+			texture_image.pixelData());                //pointer to data
+	}
+
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+}
+
 void MyView::ResetConsole()
 {
 	system("cls");
@@ -166,7 +202,14 @@ void MyView::windowViewWillStart(tygra::Window * window)
 #pragma region
 
 	//Load the textures into a map of handles
-	LoadTexture("resource:///hex.png");
+	//LoadTexture("resource:///hex.png");
+
+	std::vector<std::string> textureNames;
+	textureNames.push_back("content:///spnza_bricks_a_diff.png");
+	textureNames.push_back("content:///sponza_floor_a_diff.png");
+	textureNames.push_back("content:///sponza_fabric_diff.png");
+	textureNames.push_back("content:///lion.png");
+	LoadTextureArray(textureNames);
 
 	//Create the light vector so there will be memory already reserved that can just be overwritten if values have been changed. This has been done on 
 	//start for effiences in the constant render loop function.
@@ -263,7 +306,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		mat.diffuseColour = (const glm::vec3&)material.getDiffuseColour();
 		mat.specularColour = (const glm::vec3&)material.getSpecularColour();
 		mat.vertexShineyness = material.getShininess();
-		mat.diffuseTextureID = 0;
+		mat.diffuseTextureID = rand() % 4;
 		materials.push_back(mat);
 	}
 
@@ -538,9 +581,9 @@ void MyView::windowViewRender(tygra::Window * window)
 	glm::mat4 projection_view = projection_xform * view_xform;
 	glUniformMatrix4fv(uniforms["projection_view"], 1, GL_FALSE, glm::value_ptr(projection_view));
 	
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, textures["resource:///hex.png"]);
-	glUniform1i(glGetUniformLocation(shaderProgram, "diffuse_texture"), 0);
+	//glActiveTexture(GL_TEXTURE0);
+	//glBindTexture(GL_TEXTURE_2D, textures["resource:///hex.png"]);
+	
 
 	int counter = 0;
 	int firstMatCounter = 0;

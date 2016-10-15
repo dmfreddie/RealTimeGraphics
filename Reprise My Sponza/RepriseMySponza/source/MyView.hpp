@@ -14,6 +14,9 @@
 #define MAX_POINTLIGHTS 22
 #define MAX_DIRECTIONALLIGHTS 5
 
+
+// TODO: Texture Arrays are broken on loading
+
 struct DrawElementsIndirectCommand
 {
 	GLuint vertexCount;
@@ -115,6 +118,7 @@ private:
 	void CompileShaders();
 	void Getuniforms();
 	void LoadTexture(std::string textureName);
+	void LoadTextureArray(std::vector<std::string>& textureNames);
 	void ResetConsole();
 
 
@@ -142,6 +146,7 @@ private:
 	GLuint element_vbo; // VertexBufferObject for the elements (indices)
 	GLuint instance_vbo; // VertexBufferObject for the model xforms
 	GLuint material_vbo;
+	GLuint texture_vbo;
 
 	GLuint vao; // VertexArrayObject for the shape's vertex array settings
 	GLuint spotLightUBO;

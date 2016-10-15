@@ -48,6 +48,8 @@ layout (std140, binding = 2) uniform DirectionalLightBlock {
 uniform float MAX_DIR_LIGHTS;
 
 
+uniform vec3 vertex_ambient_colour;
+uniform vec3 global_ambient_light;
 
 uniform vec3 camera_position;
 
@@ -55,8 +57,8 @@ uniform sampler2D diffuse_texture;
 uniform sampler2D specular_texture;
 
 
-uniform vec3 vertex_ambient_colour;
-uniform vec3 global_ambient_light;
+layout (binding=3) uniform sampler2DArray textureArray;
+
 
 
 uniform float specular_smudge_factor;
@@ -67,7 +69,7 @@ in vec2 text_coord;
 in vec3 vert_diffuse_colour;
 in vec3 vert_specular_colour;
 in float vert_is_vertex_shiney;
-in int vert_diffuse_texture_ID;
+flat in int vert_diffuse_texture_ID;
 
 out vec4 fragment_colour;
 
@@ -86,7 +88,8 @@ void main(void)
 	final_colour = SpotLightCalc(final_colour);
 	final_colour = PointLightCalc(final_colour);
 
-	final_colour *= texture2D(diffuse_texture, text_coord).rgb;
+	//final_colour *= texture(textureArray, vec3(text_coord.x, text_coord.y, vert_diffuse_texture_ID)).xyz;
+	
 	/*if (has_diff_tex > 0)
 		*/
 

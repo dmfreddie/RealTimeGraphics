@@ -19,7 +19,7 @@ out vec2 text_coord;
 out vec3 vert_diffuse_colour;
 out vec3 vert_specular_colour;
 out float vert_is_vertex_shiney;
-out int vert_diffuse_texture_ID;
+flat out int vert_diffuse_texture_ID;
 
 void main(void)
 {
