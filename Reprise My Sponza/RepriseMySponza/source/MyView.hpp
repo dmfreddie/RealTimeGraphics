@@ -14,8 +14,6 @@
 #define MAX_POINTLIGHTS 22
 #define MAX_DIRECTIONALLIGHTS 5
 
-// FUCKING INDIRECT BUFFER
-
 struct DrawElementsIndirectCommand
 {
 	GLuint vertexCount;
@@ -30,6 +28,7 @@ struct Vertex
 	glm::vec3 position;
 	glm::vec3 normal;
 	glm::vec2 texcoord;
+	
 };
 
 struct MeshGL
@@ -37,6 +36,14 @@ struct MeshGL
 	GLuint first_element_index;
 	GLuint element_count;
 	GLuint first_vertex_index;
+};
+
+struct Material
+{
+	glm::vec3 diffuseColour;
+	glm::vec3 specularColour;
+	float vertexShineyness;
+	int diffuseTextureID;
 };
 
 struct PointLight
@@ -117,7 +124,8 @@ private:
 	std::unordered_map<std::string, GLuint> textures;
 	std::unordered_map<std::string, GLuint> uniforms;
 	std::vector<glm::mat4> matrices;
-	
+	std::vector<Material> materials;
+
 	DrawElementsIndirectCommand commands[30];
 
 	PointLights pointLights;
@@ -133,6 +141,8 @@ private:
 	GLuint vertex_vbo;
 	GLuint element_vbo; // VertexBufferObject for the elements (indices)
 	GLuint instance_vbo; // VertexBufferObject for the model xforms
+	GLuint material_vbo;
+
 	GLuint vao; // VertexArrayObject for the shape's vertex array settings
 	GLuint spotLightUBO;
 	GLuint pointLightUBO;

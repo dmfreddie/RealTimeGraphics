@@ -49,28 +49,25 @@ uniform float MAX_DIR_LIGHTS;
 
 
 
-
-
-
 uniform vec3 camera_position;
 
 uniform sampler2D diffuse_texture;
 uniform sampler2D specular_texture;
-uniform float outline;
 
-uniform vec3 vertex_diffuse_colour;
-uniform vec3 vertex_spec_colour;
+
 uniform vec3 vertex_ambient_colour;
 uniform vec3 global_ambient_light;
 
-uniform float vertex_shininess;
-uniform float is_vertex_shiney;
-uniform float has_diff_tex;
+
 uniform float specular_smudge_factor;
 
 in vec3 vertexPos;
 in vec3 vertexNormal;
 in vec2 text_coord;
+in vec3 vert_diffuse_colour;
+in vec3 vert_specular_colour;
+in float vert_is_vertex_shiney;
+in int vert_diffuse_texture_ID;
 
 out vec4 fragment_colour;
 
@@ -84,13 +81,14 @@ vec3 SpotLightCalc(vec3 colour);
 
 void main(void)
 {
-	vec3 final_colour = global_ambient_light * vertex_diffuse_colour;
+	vec3 final_colour = global_ambient_light * vert_diffuse_colour;
 	final_colour = DirLightCalc(final_colour);
 	final_colour = SpotLightCalc(final_colour);
 	final_colour = PointLightCalc(final_colour);
 
+	final_colour *= texture2D(diffuse_texture, text_coord).rgb;
 	/*if (has_diff_tex > 0)
-		final_colour *= texture2D(diffuse_texture, text_coord).rgb;*/
+		*/
 
 	fragment_colour = vec4(final_colour, 1.0);
 }
@@ -110,8 +108,8 @@ vec3 SpecularLight(vec3 LVector, vec3 diffuse_intensity)
 
 	if (specularFactor > 0)
 	{
-		vec3 specularIntensity = diffuse_intensity * pow(specularFactor, vertex_shininess);
-		return (vertex_spec_colour * texture2D(specular_texture, text_coord).rgb) * specularIntensity * specular_smudge_factor;
+		vec3 specularIntensity = diffuse_intensity * pow(specularFactor, vert_is_vertex_shiney);
+		return (vert_specular_colour * texture2D(specular_texture, text_coord).rgb) * specularIntensity * specular_smudge_factor;
 	}
 	return vec3(0, 0, 0);
 }
@@ -137,7 +135,7 @@ vec3 DiffuseLight(int currentLight, float attenuation)
 	vec3 diffuseMat = diffuse_intensity;
 
 
-	if (is_vertex_shiney > 0)
+	if (vert_is_vertex_shiney > 0)
 	{
 		return  diffuseMat + SpecularLight(L, diffuse_intensity);
 	}
@@ -203,46 +201,10 @@ vec3 SpotLightCalc(vec3 colour)
 		vec3 diffuse_intensity = spot.intensity * scaler;
 
 		
-		if (is_vertex_shiney > 0.0)
+		if (vert_is_vertex_shiney > 0.0)
 			diffuse_intensity += SpecularLight(L, diffuse_intensity);
 
 		colour += (diffuse_intensity * spotEffect * attenuation);
-
-
-
-
-
-
-		//vec3 LightToPixel = normalize(vertexPos - spot.position);
-		//float SpotFactor = dot(LightToPixel, normalize(-spot.direction));
-
-		//if (SpotFactor < cos(spot.coneAngle)) 
-		//{
-		//	float dist = distance(spot.position, vertexPos);
-		//	float attenuation = 1 - smoothstep(0.0, spot.range, dist);
-
-		//	float cosDir = dot(normalize(spot.position - vertexPos), -spot.direction);
-		//	float spotEffect = smoothstep(cos(spot.coneAngle), cos(spot.coneAngle/2), cosDir);
-
-		//	if (attenuation > 0)
-		//	{
-		//		vec3 L = normalize(spot.position - vertexPos);
-		//		float scaler = max(0, dot(L, normalize(vertexNormal))) * attenuation;
-
-		//		if (scaler == 0)
-		//			continue;
-
-		//		vec3 diffuse_intensity = spot.intensity * scaler;
-		//		vec3 diffuseMat = diffuse_intensity;
-
-		//		//diffuseMat *= diffuse_intensity;
-
-		//		if (is_vertex_shiney > 0)
-		//			colour +=  (diffuseMat + SpecularLight(L, diffuse_intensity)) * spotEffect;
-		//		else
-		//			colour +=  (spot.intensity * diffuseMat)* (1.0 - (1.0 - SpotFactor)) *spotEffect;
-		//	}
-		//}
 
 	}
 

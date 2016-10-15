@@ -85,7 +85,7 @@ void MyView::Getuniforms()
 	also performed on start because the locations of the uniforms wont need to be changed per frame so it will speed up the rendering function as it
 	doesn't need to perform unnessacary computation.
 	*/
-	uniforms["projection_view_xform"] = glGetUniformLocation(shaderProgram, "projection_view_xform");
+	uniforms["projection_view"] = glGetUniformLocation(shaderProgram, "projection_view");
 	uniforms["vertex_diffuse_colour"] = glGetUniformLocation(shaderProgram, "vertex_diffuse_colour");
 	uniforms["vertex_ambient_colour"] = glGetUniformLocation(shaderProgram, "vertex_ambient_colour");
 	uniforms["vertex_spec_colour"] = glGetUniformLocation(shaderProgram, "vertex_spec_colour");
@@ -100,7 +100,6 @@ void MyView::Getuniforms()
 	uniforms["MAX_SPOT_LIGHTS"] = glGetUniformLocation(shaderProgram, "MAX_SPOT_LIGHTS");
 	uniforms["MAX_DIR_LIGHTS"] = glGetUniformLocation(shaderProgram, "MAX_DIR_LIGHTS");
 
-	uniforms["outline"] = glGetUniformLocation(shaderProgram, "outline");
 	uniforms["has_diff_tex"] = glGetUniformLocation(shaderProgram, "has_diff_tex");
 
 #pragma endregion // Get the uniform locations
@@ -251,6 +250,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	{
 
 		auto& instances = scene_->getInstancesByMeshId(ent1.first);
+		scene::Material material = scene_->getMaterialById(scene_->getInstanceById(instances[0]).getMaterialId());
 
 		for (const auto& instance : instances)
 		{
@@ -258,6 +258,13 @@ void MyView::windowViewWillStart(tygra::Window * window)
 			glm::mat4 model_xform = glm::mat4((const glm::mat4x3&)inst.getTransformationMatrix());
 			matrices.push_back(model_xform);
 		}
+
+		Material mat;
+		mat.diffuseColour = (const glm::vec3&)material.getDiffuseColour();
+		mat.specularColour = (const glm::vec3&)material.getSpecularColour();
+		mat.vertexShineyness = material.getShininess();
+		mat.diffuseTextureID = 0;
+		materials.push_back(mat);
 	}
 
 	glGenBuffers(1, &vertex_vbo);
@@ -285,6 +292,15 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+	glGenBuffers(1, &material_vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, material_vbo);
+	glBufferData(GL_ARRAY_BUFFER,
+		materials.size() * sizeof(Material),
+		materials.data(),
+		GL_STATIC_DRAW
+		);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
 	GLenum err = glGetError();
 	if(err != GL_NO_ERROR)
 		std::cerr << err << std::endl;
@@ -300,22 +316,27 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glEnableVertexAttribArray(2);
 	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), TGL_BUFFER_OFFSET_OF(Vertex, texcoord));
 
-	err = glGetError();
-	if (err != GL_NO_ERROR)
-		std::cerr << err << std::endl;
+	
 
 	glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
 	for (unsigned int i = 0; i < 4; i++) {
 		glEnableVertexAttribArray(3 + i);
-		glVertexAttribPointer(3 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4),
-			(const GLvoid*)(sizeof(GLfloat) * i * 4));
+		glVertexAttribPointer(3 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (const GLvoid*)(sizeof(GLfloat) * i * 4));
 		glVertexAttribDivisor(3 + i, 1);
 	}
 
-	err = glGetError();
-	if (err != GL_NO_ERROR)
-		std::cerr << err << std::endl;
-
+	glEnableVertexAttribArray(7);
+	glVertexAttribPointer(7, 2, GL_FLOAT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, diffuseColour));
+	glVertexAttribDivisor(7, 1);
+	glEnableVertexAttribArray(8);
+	glVertexAttribPointer(8, 2, GL_FLOAT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, specularColour));
+	glVertexAttribDivisor(8, 1);
+	glEnableVertexAttribArray(9);
+	glVertexAttribPointer(9, 2, GL_FLOAT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, vertexShineyness));
+	glVertexAttribDivisor(9, 1);
+	glEnableVertexAttribArray(10);
+	glVertexAttribPointer(10, 2, GL_INT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, diffuseTextureID));
+	glVertexAttribDivisor(10, 1);
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -416,9 +437,16 @@ void MyView::windowViewDidReset(tygra::Window * window,
 void MyView::windowViewDidStop(tygra::Window * window)
 {
 	glDeleteProgram(shaderProgram);
-
+	glDeleteShader(vertex_shader);
+	glDeleteShader(fragment_shader);
 	glDeleteBuffers(1, &vertex_vbo);
 	glDeleteBuffers(1, &element_vbo);
+	glDeleteBuffers(1, &instance_vbo);
+	glDeleteBuffers(1, &material_vbo);
+	glDeleteBuffers(1, &spotLightUBO);
+	glDeleteBuffers(1, &pointLightUBO);
+	glDeleteBuffers(1, &directionalLightUBO);
+	glDeleteBuffers(1, &commandBuffer);
 	glDeleteVertexArrays(1, &vao);
 }
 
@@ -507,8 +535,12 @@ void MyView::windowViewRender(tygra::Window * window)
 #pragma region Draw call for rendering normal sponza
 
 
-	glm::mat4 projection_view_xform = projection_xform * view_xform;
-	glUniformMatrix4fv(uniforms["projection_view_xform"], 1, GL_FALSE, glm::value_ptr(projection_view_xform));
+	glm::mat4 projection_view = projection_xform * view_xform;
+	glUniformMatrix4fv(uniforms["projection_view"], 1, GL_FALSE, glm::value_ptr(projection_view));
+	
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, textures["resource:///hex.png"]);
+	glUniform1i(glGetUniformLocation(shaderProgram, "diffuse_texture"), 0);
 
 	int counter = 0;
 	int firstMatCounter = 0;
@@ -527,29 +559,6 @@ void MyView::windowViewRender(tygra::Window * window)
 		}
 		glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
 		glBufferSubData(GL_ARRAY_BUFFER, firstMatCounter *  sizeof(glm::mat4), sizeof(glm::mat4) * (instances.size()), glm::value_ptr(matrices[firstMatCounter]));
-		
-		scene::Material material = scene_->getMaterialById(scene_->getInstanceById(instances[0]).getMaterialId());
-
-		glUniform3fv(uniforms["vertex_diffuse_colour"], 1, glm::value_ptr((const glm::mat3&)material.getDiffuseColour()));
-		glUniform3fv(uniforms["vertex_spec_colour"], 1, glm::value_ptr((const glm::mat3&)material.getSpecularColour()));
-		glUniform1f(uniforms["vertex_shininess"], material.getShininess());
-		glUniform1f(uniforms["is_vertex_shiney"], (float)material.isShiny());
-
-		glUniform1f(uniforms["has_diff_tex"], 1);
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, textures["resource:///hex.png"]);
-		glUniform1i(glGetUniformLocation(shaderProgram, "diffuse_texture"), 0);
-
-		/*const auto& meshGLData = mesh.second; 
-		glDrawElementsInstancedBaseVertexBaseInstance(GL_TRIANGLES, 
-			meshGLData.element_count, 
-			GL_UNSIGNED_INT, 
-			(GLvoid*)(meshGLData.first_element_index * sizeof(int)), 
-			instances.size(), 
-			meshGLData.first_vertex_index, 
-			firstMatCounter);
-		firstMatCounter = counter;*/
 	}
 		
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
