@@ -138,19 +138,20 @@ LoadTexture(std::string textureName)
 void MyView::LoadTextureArray(std::vector<std::string>& textureNames)
 {
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	glGenTextures(1, &texture_vbo);
 	glActiveTexture(GL_TEXTURE0);
+	glGenTextures(1, &texture_vbo);
 	glBindTexture(GL_TEXTURE_2D_ARRAY, texture_vbo);
 	glUniform1i(3, 0);
-	//Create storage for the texture. (100 layers of 1x1 texels)
-	glTexStorage3D(GL_TEXTURE_2D_ARRAY,
-		1,                    //No mipmaps as textures are 1x1
-		GL_RGBA,              //Internal format
-		1024, 1024,                 //width,height
-		100                   //Number of layers
-		);
 
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA, 1024, 1024, (int)textureNames.size(), 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	//glTexStorage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA, 1024, 1024, (int)textureNames.size());
 	GLenum pixel_formats[] = { 0, GL_RED, GL_RG, GL_RGB, GL_RGBA };
+	// TODO: Fist time through the for loop generates a 1282: GL_INVALID_OPERATION error generated. Wrong component type or count!
 	for (unsigned int i = 0; i < textureNames.size(); ++i)
 	{
 		tygra::Image texture_image = tygra::createImageFromPngFile(textureNames[i]);
@@ -160,15 +161,15 @@ void MyView::LoadTextureArray(std::vector<std::string>& textureNames)
 			0,                     //Mipmap number
 			0, 0, i,                 //xoffset, yoffset, zoffset
 			1024, 1024, 1,                 //width, height, depth
-			GL_RGBA,                //format
-			GL_UNSIGNED_BYTE,      //type
+			pixel_formats[texture_image.componentsPerPixel()],                //format
+			texture_image.bytesPerComponent() == 1 ? GL_UNSIGNED_BYTE : GL_UNSIGNED_SHORT,      //type
 			texture_image.pixelData());                //pointer to data
+		GLenum err = glGetError();
+		if (err != GL_NO_ERROR)
+			std::cerr << err << std::endl;
 	}
 
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	
 }
 
 void MyView::ResetConsole()
@@ -176,7 +177,7 @@ void MyView::ResetConsole()
 	system("cls");
 	//Application instructions
 	std::cout << "ABOUT" << std::endl;
-	std::cout << "Reprise My Sponza - Real Time Graphics ICA1" << std::endl;
+	std::cout << "Reprise My Sponza - Real Time Graphics ICA 1" << std::endl;
 	std::cout << "P4011584 - Frederic Babord 2016 - 2017" << std::endl << std::endl;
 	/*std::cout << "Submission date: 04th February 2016" << std::endl << std::endl;
 	std::cout << "INSTRUCTIONS" << std::endl;
@@ -190,7 +191,7 @@ void MyView::ResetConsole()
 	std::cout << "Press Z to reduce the specular intensity smudge factor." << std::endl;
 	std::cout << "Press C to increase the specular intensity smudge factor." << std::endl << std::endl;
 	std::cout << "Press Esc to Close." << std::endl << std::endl;*/
-	CompileShaders();
+
 }
 
 void MyView::windowViewWillStart(tygra::Window * window)
@@ -198,6 +199,8 @@ void MyView::windowViewWillStart(tygra::Window * window)
     assert(scene_ != nullptr);
 
 	ResetConsole();
+	CompileShaders();
+	glUseProgram(shaderProgram);
 
 #pragma region
 
@@ -237,7 +240,9 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		directionalLights.data[i] = light;
 	}
 
-
+	GLenum err = glGetError();
+	if (err != GL_NO_ERROR)
+		std::cerr << err << std::endl;
 
 	auto& spotLightRef = scene_->getAllSpotLights();
 	for (unsigned int i = 0; i < spotLightRef.size(); ++i)
@@ -254,6 +259,10 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 
 #pragma endregion // Textures and Lights
+
+	err = glGetError();
+	if (err != GL_NO_ERROR)
+		std::cerr << err << std::endl;
 
 #pragma region
 	scene::GeometryBuilder builder;
@@ -289,12 +298,15 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		newMesh.element_count = elementsArr.size();
 	}
 
+	err = glGetError();
+	if (err != GL_NO_ERROR)
+		std::cerr << err << std::endl;
+
 	for (const auto &ent1 : meshes_)
 	{
 
 		auto& instances = scene_->getInstancesByMeshId(ent1.first);
 		scene::Material material = scene_->getMaterialById(scene_->getInstanceById(instances[0]).getMaterialId());
-
 		for (const auto& instance : instances)
 		{
 			const auto& inst = scene_->getInstanceById(instance);
@@ -306,9 +318,13 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		mat.diffuseColour = (const glm::vec3&)material.getDiffuseColour();
 		mat.specularColour = (const glm::vec3&)material.getSpecularColour();
 		mat.vertexShineyness = material.getShininess();
-		mat.diffuseTextureID = rand() % 4;
+		mat.diffuseTextureID = 0;
 		materials.push_back(mat);
 	}
+
+	err = glGetError();
+	if (err != GL_NO_ERROR)
+		std::cerr << err << std::endl;
 
 	glGenBuffers(1, &vertex_vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vertex_vbo);
@@ -318,6 +334,10 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		GL_STATIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+	err = glGetError();
+	if (err != GL_NO_ERROR)
+		std::cerr << err << std::endl;
+
 	glGenBuffers(1, &element_vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, element_vbo);
 	glBufferData(GL_ARRAY_BUFFER,
@@ -325,6 +345,10 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		elements.data(), // pointer to the data
 		GL_STATIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	err = glGetError();
+	if (err != GL_NO_ERROR)
+		std::cerr << err << std::endl;
 
 	glGenBuffers(1, &instance_vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
@@ -335,6 +359,10 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
+	err = glGetError();
+	if (err != GL_NO_ERROR)
+		std::cerr << err << std::endl;
+
 	glGenBuffers(1, &material_vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, material_vbo);
 	glBufferData(GL_ARRAY_BUFFER,
@@ -344,7 +372,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-	GLenum err = glGetError();
+	err = glGetError();
 	if(err != GL_NO_ERROR)
 		std::cerr << err << std::endl;
 
@@ -508,7 +536,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	const float aspect_ratio = viewport_size[2] / (float)viewport_size[3];
 
 	//Use the initial shader program to render sponza normally
-	glUseProgram(shaderProgram);
+	
 	glBindVertexArray(vao);
 
 	glm::mat4 projection_xform = glm::perspective(glm::radians(scene_->getCamera().getVerticalFieldOfViewInDegrees()), aspect_ratio, scene_->getCamera().getNearPlaneDistance(), scene_->getCamera().getFarPlaneDistance());
