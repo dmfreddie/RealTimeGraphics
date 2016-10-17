@@ -70,7 +70,7 @@ in vec2 text_coord;
 in vec3 vert_diffuse_colour;
 in vec3 vert_specular_colour;
 in float vert_is_vertex_shiney;
-flat in int vert_diffuse_texture_ID;
+in float vert_diffuse_texture_ID;
 
 out vec4 fragment_colour;
 
@@ -90,10 +90,11 @@ void main(void)
 	final_colour = PointLightCalc(final_colour);
 
 	//final_colour *= texture(textureArray, vec3(text_coord.x, text_coord.y, vert_diffuse_texture_ID)).xyz;
-	final_colour *= texture2DArray(textureArray, vec3(text_coord, vert_diffuse_texture_ID)).rgb;
+	if(vert_diffuse_texture_ID < 27)
+		final_colour *= texture2DArray(textureArray, vec3(text_coord, vert_diffuse_texture_ID)).rgb;
 	/*if (has_diff_tex > 0)
 		*/
-
+	//final_colour = vec3((vert_diffuse_texture_ID * 255)/7,(vert_diffuse_texture_ID * 255)/7,(vert_diffuse_texture_ID * 255)/7);
 	fragment_colour = vec4(final_colour, 1.0);
 }
 

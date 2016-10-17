@@ -6,12 +6,11 @@ uniform mat4 projection_view;
 in vec3 vertex_position;
 in vec3 vertex_normal;
 in vec2 vertex_texcoord;
-in mat4 model_matrix;
 in vec3 vertex_diffuse_colour;
 in vec3 vertex_specular_colour;
 in float vertex_is_vertex_shiney;
 in int vertex_diffuse_texture_ID;
-
+in mat4 model_matrix;
 
 out vec3 vertexPos;
 out vec3 vertexNormal;
@@ -19,7 +18,7 @@ out vec2 text_coord;
 out vec3 vert_diffuse_colour;
 out vec3 vert_specular_colour;
 out float vert_is_vertex_shiney;
-flat out int vert_diffuse_texture_ID;
+out float vert_diffuse_texture_ID;
 
 void main(void)
 {

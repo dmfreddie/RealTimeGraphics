@@ -128,7 +128,7 @@ private:
 	std::unordered_map<std::string, GLuint> textures;
 	std::unordered_map<std::string, GLuint> uniforms;
 	std::vector<glm::mat4> matrices;
-	std::vector<Material> materials;
+	
 
 	DrawElementsIndirectCommand commands[30];
 
