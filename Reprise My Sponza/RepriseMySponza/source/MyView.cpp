@@ -64,6 +64,11 @@ void MyView::CompileShaders()
 	glBindAttribLocation(shaderProgram, 0, "vertex_position");
 	glBindAttribLocation(shaderProgram, 1, "vertex_normal");
 	glBindAttribLocation(shaderProgram, 2, "vertex_texcoord");
+
+	glBindAttribLocation(shaderProgram, 7, "vertex_diffuse_colour");
+	glBindAttribLocation(shaderProgram, 8, "vertex_specular_colour");
+	glBindAttribLocation(shaderProgram, 9, "vertex_is_vertex_shiney");
+	glBindAttribLocation(shaderProgram, 10, "vertex_diffuse_texture_ID");
 	glDeleteShader(vertex_shader);
 	glAttachShader(shaderProgram, fragment_shader);
 	glDeleteShader(fragment_shader);
@@ -141,6 +146,7 @@ void MyView::LoadTextureArray(std::vector<std::string>& textureNames)
 	glActiveTexture(GL_TEXTURE0);
 	glGenTextures(1, &texture_vbo);
 	glBindTexture(GL_TEXTURE_2D_ARRAY, texture_vbo);
+	auto bob = glGetUniformLocation(shaderProgram, "textureArray");
 	glUniform1i(3, 0);
 
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -148,8 +154,8 @@ void MyView::LoadTextureArray(std::vector<std::string>& textureNames)
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA, 1024, 1024, (int)textureNames.size(), 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-	//glTexStorage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA, 1024, 1024, (int)textureNames.size());
+	//glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA, 1024, 1024, (int)textureNames.size(), 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+	glTexStorage3D(GL_TEXTURE_2D_ARRAY, 11, GL_RGBA8, 1024, 1024, (int)textureNames.size());
 	GLenum pixel_formats[] = { 0, GL_RED, GL_RG, GL_RGB, GL_RGBA };
 	// TODO: Fist time through the for loop generates a 1282: GL_INVALID_OPERATION error generated. Wrong component type or count!
 	for (unsigned int i = 0; i < textureNames.size(); ++i)
@@ -164,6 +170,7 @@ void MyView::LoadTextureArray(std::vector<std::string>& textureNames)
 			pixel_formats[texture_image.componentsPerPixel()],                //format
 			texture_image.bytesPerComponent() == 1 ? GL_UNSIGNED_BYTE : GL_UNSIGNED_SHORT,      //type
 			texture_image.pixelData());                //pointer to data
+		glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
 		GLenum err = glGetError();
 		if (err != GL_NO_ERROR)
 			std::cerr << err << std::endl;
@@ -208,10 +215,63 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	//LoadTexture("resource:///hex.png");
 
 	std::vector<std::string> textureNames;
-	textureNames.push_back("content:///spnza_bricks_a_diff.png");
-	textureNames.push_back("content:///sponza_floor_a_diff.png");
-	textureNames.push_back("content:///sponza_fabric_diff.png");
+	textureNames.push_back("content:///vase_dif.png");
+	textureNames.push_back("content:///sponza_ceiling_a_diff.png");
+	textureNames.push_back("content:///sponza_ceiling_a_diff.png");
 	textureNames.push_back("content:///lion.png");
+	textureNames.push_back("content:///vase_round.png");
+	textureNames.push_back("content:///vase_round.png");
+	textureNames.push_back("content:///background.png");
+	textureNames.push_back("content:///background.png");
+	textureNames.push_back("content:///spnza_bricks_a_diff.png");
+	textureNames.push_back("content:///sponza_thorn_diff.png");
+	textureNames.push_back("content:///sponza_floor_a_diff.png");
+	textureNames.push_back("content:///sponza_fabric_blue_diff.png");
+	textureNames.push_back("content:///sponza_roof_diff.png");
+	textureNames.push_back("content:///spnza_bricks_a_diff.png");
+	textureNames.push_back("content:///spnza_bricks_a_diff.png");
+	textureNames.push_back("content:///spnza_bricks_a_diff.png");
+	textureNames.push_back("content:///spnza_bricks_a_diff.png");
+	textureNames.push_back("content:///spnza_bricks_a_diff.png");
+	textureNames.push_back("content:///chain_texture.png");
+	textureNames.push_back("content:///vase_round.png");
+	textureNames.push_back("content:///sponza_thorn_diff.png");
+	textureNames.push_back("content:///sponza_thorn_diff.png");
+	textureNames.push_back("content:///spnza_bricks_a_diff.png");
+	textureNames.push_back("content:///sponza_fabric_blue_diff.png");
+	textureNames.push_back("content:///sponza_floor_a_diff.png");
+
+	/*
+	vases
+hanger
+unknown
+lion heads
+plant pots
+unknown
+shield
+flag poles
+unknown
+main walls
+bottom foliage
+floor
+drapes
+roof
+curtain poles
+unknown
+oter walls
+inner walls
+unkown
+chain
+hanging pots
+upper foliage
+upper foliage
+unkown
+drapes
+upper floor
+friend 1
+friend 2
+friend 3
+	*/
 	LoadTextureArray(textureNames);
 
 	//Create the light vector so there will be memory already reserved that can just be overwritten if values have been changed. This has been done on 
@@ -302,24 +362,30 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	if (err != GL_NO_ERROR)
 		std::cerr << err << std::endl;
 
+	int i = 0;
 	for (const auto &ent1 : meshes_)
 	{
 
 		auto& instances = scene_->getInstancesByMeshId(ent1.first);
-		scene::Material material = scene_->getMaterialById(scene_->getInstanceById(instances[0]).getMaterialId());
+		
 		for (const auto& instance : instances)
 		{
 			const auto& inst = scene_->getInstanceById(instance);
 			glm::mat4 model_xform = glm::mat4((const glm::mat4x3&)inst.getTransformationMatrix());
 			matrices.push_back(model_xform);
+			scene::Material material = scene_->getMaterialById(scene_->getInstanceById(instance).getMaterialId());
+			Material mat;
+			mat.diffuseColour = (const glm::vec3&)material.getDiffuseColour();
+			mat.specularColour = (const glm::vec3&)material.getSpecularColour();
+			mat.vertexShineyness = material.getShininess();
+			mat.diffuseTextureID = i;
+			materials.push_back(mat);
+			
 		}
-
-		Material mat;
-		mat.diffuseColour = (const glm::vec3&)material.getDiffuseColour();
-		mat.specularColour = (const glm::vec3&)material.getSpecularColour();
-		mat.vertexShineyness = material.getShininess();
-		mat.diffuseTextureID = 0;
-		materials.push_back(mat);
+		i++;
+		if (i >= textureNames.size())
+			i = 0;
+		
 	}
 
 	err = glGetError();
@@ -395,22 +461,23 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		glVertexAttribPointer(3 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (const GLvoid*)(sizeof(GLfloat) * i * 4));
 		glVertexAttribDivisor(3 + i, 1);
 	}
+	
 
 	glEnableVertexAttribArray(7);
-	glVertexAttribPointer(7, 2, GL_FLOAT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, diffuseColour));
+	glVertexAttribPointer(7, 3, GL_FLOAT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, diffuseColour));
 	glVertexAttribDivisor(7, 1);
 	glEnableVertexAttribArray(8);
-	glVertexAttribPointer(8, 2, GL_FLOAT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, specularColour));
+	glVertexAttribPointer(8, 3, GL_FLOAT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, specularColour));
 	glVertexAttribDivisor(8, 1);
 	glEnableVertexAttribArray(9);
-	glVertexAttribPointer(9, 2, GL_FLOAT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, vertexShineyness));
+	glVertexAttribPointer(9, 1, GL_FLOAT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, vertexShineyness));
 	glVertexAttribDivisor(9, 1);
 	glEnableVertexAttribArray(10);
-	glVertexAttribPointer(10, 2, GL_INT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, diffuseTextureID));
+	glVertexAttribPointer(10, 1, GL_INT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, diffuseTextureID));
 	glVertexAttribDivisor(10, 1);
 
+	
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
-
 
 	
 

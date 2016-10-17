@@ -58,7 +58,7 @@ uniform sampler2D diffuse_texture;
 uniform sampler2D specular_texture;
 
 
-layout (binding=3) uniform sampler2DArray textureArray;
+layout (location=3) uniform sampler2DArray textureArray;
 
 
 
@@ -90,7 +90,7 @@ void main(void)
 	final_colour = PointLightCalc(final_colour);
 
 	//final_colour *= texture(textureArray, vec3(text_coord.x, text_coord.y, vert_diffuse_texture_ID)).xyz;
-	//final_colour *= texture2DArray(textureArray, vec3(text_coord, 0)).rgb;
+	final_colour *= texture2DArray(textureArray, vec3(text_coord, vert_diffuse_texture_ID)).rgb;
 	/*if (has_diff_tex > 0)
 		*/
 
