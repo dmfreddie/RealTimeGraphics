@@ -192,7 +192,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	CompileShaders();
 	glUseProgram(shaderProgram);
 
-#pragma region
+#pragma region Textures and Lights
 
 	// Load the textures into an array
 
@@ -254,8 +254,8 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	specularTextureNames.push_back("content:///SpecularMaps/sponza_roof_spec.png");
 	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
 
-	LoadTextureArray(diffuseTextureNames, shaderProgram, diffuse_texture_vbo, "textureArray");
-	//LoadTextureArray(specularTextureNames, shaderProgram, specular_texture_vbo, "specularTextureArray");
+	LoadTextureArray(diffuseTextureNames, shaderProgram, diffuse_texture_array_handle, "textureArray");
+	//LoadTextureArray(specularTextureNames, shaderProgram, specular_texture_array_handle, "specularTextureArray");
 
 	//Create the light vector so there will be memory already reserved that can just be overwritten if values have been changed. This has been done on 
 	//start for effiences in the constant render loop function.
@@ -302,14 +302,13 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	}
 	dataBlock.maxSpotlights = spotLightRef.size();
 	dataBlock.globalAmbientLight = (const glm::vec3&)scene_->getAmbientLightIntensity();
-
-#pragma endregion // Textures and Lights
-
+	
 	err = glGetError();
 	if (err != GL_NO_ERROR)
 		std::cerr << err << std::endl;
+#pragma endregion
 
-#pragma region
+#pragma region Load the mesh into buffers
 	scene::GeometryBuilder builder;
 	std::vector<Vertex> vertices;
 	std::vector<unsigned int> elements;
@@ -470,9 +469,9 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	err = glGetError();
 	if (err != GL_NO_ERROR)
 		std::cerr << err << std::endl;
-#pragma endregion //Load the mesh into buffers
+#pragma endregion 
 
-#pragma region
+#pragma region Command Data
 	int commandInt = 0;
 	int counter = 0;
 	int baseInstance = 0;
@@ -500,9 +499,9 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		GL_DYNAMIC_DRAW
 	);
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
-#pragma endregion // Command Data
+#pragma endregion
 
-#pragma region 
+#pragma region UBO 
 	glGenBuffers(1, &dataBlockUBO);
 	glBindBuffer(GL_UNIFORM_BUFFER, dataBlockUBO);
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(DataBlock), &dataBlock, GL_STREAM_DRAW);
@@ -510,7 +509,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, dataBlockUBO);
 	glUniformBlockBinding(shaderProgram, glGetUniformBlockIndex(shaderProgram, "DataBlock"), 0);
 
-#pragma endregion //UBO
+#pragma endregion 
 
 	glBindVertexArray(0);
 	
