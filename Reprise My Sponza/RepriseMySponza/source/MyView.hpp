@@ -6,7 +6,6 @@
 #include <glm/glm.hpp>
 
 #include <vector>
-#include <memory>
 #include <unordered_map>
 #include <map>
 
@@ -58,11 +57,6 @@ struct PointLight
 
 };
 
-struct PointLights
-{
-	PointLight data[22];
-};
-
 struct SpotLight
 {
 	glm::vec3 position;
@@ -73,11 +67,6 @@ struct SpotLight
 	bool castShadow;
 };
 
-struct SpotLights
-{
-	SpotLight data[15];
-};
-
 struct DirectionalLight
 {
 	glm::vec3 direction;
@@ -86,9 +75,16 @@ struct DirectionalLight
 	float padding2;
 };
 
-struct DirectionalLights
+struct DataBlock
 {
-	DirectionalLight data[5];
+	SpotLight spotLights[15];
+	PointLight pointLights[22];
+	DirectionalLight directionalLights[3];
+	glm::vec3 globalAmbientLight;
+	float maxPointLights;
+	glm::vec3 cameraPosition;
+	float maxDirectionalLights;
+	float maxSpotlights;
 };
 
 class MyView : public tygra::WindowViewDelegate
@@ -100,6 +96,11 @@ public:
     ~MyView();
 
     void setScene(const scene::Context * scene);
+
+	void UseTextures(const bool useTextures_);
+	const bool UseTextures() const;
+	void CompileShaders();
+	void ResetConsole();
 
 private:
 
@@ -115,12 +116,11 @@ private:
 
 	void CompileShader(std::string shaderFileName, GLenum shaderType, GLuint& shaderVariable);
 	bool CheckLinkStatus(GLuint shaderProgram);
-	void CompileShaders();
+	
 	void Getuniforms();
 	void LoadTexture(std::string textureName);
-	void LoadTextureArray(std::vector<std::string>& textureNames);
-	void ResetConsole();
-
+	void LoadTextureArray(std::vector<std::string>& textureNames, GLuint& shaderHandle, GLuint& textureArrayHandle, const char* samplerHandle);
+	
 
     const scene::Context * scene_;
 
@@ -128,29 +128,27 @@ private:
 	std::unordered_map<std::string, GLuint> textures;
 	std::unordered_map<std::string, GLuint> uniforms;
 	std::vector<glm::mat4> matrices;
+	DataBlock dataBlock;
+
 	
-
 	DrawElementsIndirectCommand commands[30];
-
-	PointLights pointLights;
-	DirectionalLights directionalLights;
-	SpotLights spotLights;
+	
 
 	GLuint shaderProgram;
 	GLuint vertex_shader;
 	GLuint fragment_shader;
+	
 
-
-
+	GLuint vao; // VertexArrayObject for the shape's vertex array settings
 	GLuint vertex_vbo;
 	GLuint element_vbo; // VertexBufferObject for the elements (indices)
 	GLuint instance_vbo; // VertexBufferObject for the model xforms
 	GLuint material_vbo;
-	GLuint texture_vbo;
-
-	GLuint vao; // VertexArrayObject for the shape's vertex array settings
-	GLuint spotLightUBO;
-	GLuint pointLightUBO;
-	GLuint directionalLightUBO;
+	GLuint diffuse_texture_vbo;
+	GLuint specular_texture_vbo;
+	GLuint dataBlockUBO;
 	GLuint commandBuffer;
+
+
+	bool useTextures = true;
 };

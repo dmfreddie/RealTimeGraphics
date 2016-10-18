@@ -11,14 +11,6 @@ struct SpotLight
 	bool castShadow;
 };
 
-layout (std140, binding = 0) uniform SpotLightBlock {
-	SpotLight spotLights [15];
-};
-
-uniform float MAX_SPOT_LIGHTS;
-
-
-
 struct PointLight
 {
 	vec3 position;
@@ -26,14 +18,6 @@ struct PointLight
 	vec3 intensity;
 	float padding;
 };
-
-layout (std140, binding=1) uniform PointLightBlock {
-	PointLight pointLights [22];
-};
-
-uniform float MAX_LIGHTS;
-
-
 
 struct DirectionalLight
 {
@@ -43,26 +27,21 @@ struct DirectionalLight
 	float padding2;
 };
 
-layout (std140, binding = 2) uniform DirectionalLightBlock {
-	DirectionalLight directionalLights [5];
+layout (std140, binding=0) uniform DataBlock {
+	SpotLight spotLights [15];
+	PointLight pointLights [22];
+	DirectionalLight directionalLights [3];
+	vec3 camera_position;
+	float maxPointLights;
+	vec3 global_ambient_light;
+	float maxDirectionalLights;
+	float maxSpotLights;
 };
-uniform float MAX_DIR_LIGHTS;
 
+layout (location=1) uniform sampler2DArray textureArray;
+layout (location=2) uniform sampler2DArray specularTextureArray;
 
-uniform vec3 vertex_ambient_colour;
-uniform vec3 global_ambient_light;
-
-uniform vec3 camera_position;
-
-uniform sampler2D diffuse_texture;
-uniform sampler2D specular_texture;
-
-
-layout (location=3) uniform sampler2DArray textureArray;
-
-
-
-uniform float specular_smudge_factor;
+uniform bool useTextures;
 
 in vec3 vertexPos;
 in vec3 vertexNormal;
@@ -90,11 +69,13 @@ void main(void)
 	final_colour = PointLightCalc(final_colour);
 
 	//final_colour *= texture(textureArray, vec3(text_coord.x, text_coord.y, vert_diffuse_texture_ID)).xyz;
-	if(vert_diffuse_texture_ID < 27)
+	#ifdef GL_EXT_texture_array
+	if(vert_diffuse_texture_ID < 27 && useTextures)
 		final_colour *= texture2DArray(textureArray, vec3(text_coord, vert_diffuse_texture_ID)).rgb;
-	/*if (has_diff_tex > 0)
-		*/
-	//final_colour = vec3((vert_diffuse_texture_ID * 255)/7,(vert_diffuse_texture_ID * 255)/7,(vert_diffuse_texture_ID * 255)/7);
+	#else
+	if(vert_diffuse_texture_ID < 27 && useTextures)
+		final_colour *= texture(textureArray, vec3(text_coord.x, text_coord.y, vert_diffuse_texture_ID)).xyz;
+	#endif
 	fragment_colour = vec4(final_colour, 1.0);
 }
 
@@ -114,7 +95,9 @@ vec3 SpecularLight(vec3 LVector, vec3 diffuse_intensity)
 	if (specularFactor > 0)
 	{
 		vec3 specularIntensity = diffuse_intensity * pow(specularFactor, vert_is_vertex_shiney);
-		return (vert_specular_colour * texture2D(specular_texture, text_coord).rgb) * specularIntensity * specular_smudge_factor;
+		//if(useTextures)
+		//	specularIntensity *= texture2DArray(specularTextureArray, vec3(text_coord, vert_diffuse_texture_ID)).rgb;
+		return vert_specular_colour * specularIntensity;
 	}
 	return vec3(0, 0, 0);
 }
@@ -149,7 +132,7 @@ Calculate the colour value for the light and add it to the total light for the p
 */
 vec3 PointLightCalc(vec3 colour)
 {
-	for (int i = 0; i < MAX_LIGHTS; i++)
+	for (int i = 0; i < maxPointLights; i++)
 	{
 		PointLight pointLight = pointLights[i];
 		float dist = distance(pointLight.position, vertexPos);
@@ -165,7 +148,7 @@ vec3 PointLightCalc(vec3 colour)
 
 vec3 DirLightCalc(vec3 colour)
 {
-	for (int i = 0; i < MAX_DIR_LIGHTS; i++)
+	for (int i = 0; i < maxDirectionalLights; i++)
 	{
 		DirectionalLight dir = directionalLights[i];
 
@@ -182,7 +165,7 @@ vec3 DirLightCalc(vec3 colour)
 
 vec3 SpotLightCalc(vec3 colour)
 {
-	for (int i = 0; i < MAX_SPOT_LIGHTS; i++)
+	for (int i = 0; i < maxSpotLights; i++)
 	{
 		SpotLight spot = spotLights[i];
 		

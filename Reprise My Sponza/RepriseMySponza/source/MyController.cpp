@@ -99,7 +99,9 @@ void MyController::windowControlKeyboardChanged(tygra::Window * window,
     case 'S':
         camera_move_speed_[3] = down ? 1.f : 0.f;
         break;
+	
     }
+
 
     updateCameraTranslation();
 
@@ -111,6 +113,16 @@ void MyController::windowControlKeyboardChanged(tygra::Window * window,
     case tygra::kWindowKeyF2:
         scene_->toggleCameraAnimation();
         break;
+	case tygra::kWindowKeyF1:
+		view_->UseTextures(!view_->UseTextures());
+		break;
+	case tygra::kWindowKeyF5:
+		view_->ResetConsole();
+		view_->CompileShaders();
+		break;
+	case tygra::kWindowKeyEsc:
+		window->close();
+		break;
     }
 }
 

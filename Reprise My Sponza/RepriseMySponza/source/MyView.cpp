@@ -20,6 +20,16 @@ void MyView::setScene(const scene::Context * scene)
     scene_ = scene;
 }
 
+void MyView::UseTextures(const bool useTextures_)
+{
+	useTextures = useTextures_;
+}
+
+const bool MyView::UseTextures() const
+{
+	return useTextures;
+}
+
 void MyView::
 CompileShader(std::string shaderFileName, GLenum shaderType, GLuint& shaderVariable)
 {
@@ -65,10 +75,6 @@ void MyView::CompileShaders()
 	glBindAttribLocation(shaderProgram, 1, "vertex_normal");
 	glBindAttribLocation(shaderProgram, 2, "vertex_texcoord");
 
-	/*glBindAttribLocation(shaderProgram, 7, "vertex_diffuse_colour");
-	glBindAttribLocation(shaderProgram, 8, "vertex_specular_colour");
-	glBindAttribLocation(shaderProgram, 9, "vertex_is_vertex_shiney");
-	glBindAttribLocation(shaderProgram, 10, "vertex_diffuse_texture_ID");*/
 	glDeleteShader(vertex_shader);
 	glAttachShader(shaderProgram, fragment_shader);
 	glDeleteShader(fragment_shader);
@@ -91,21 +97,7 @@ void MyView::Getuniforms()
 	doesn't need to perform unnessacary computation.
 	*/
 	uniforms["projection_view"] = glGetUniformLocation(shaderProgram, "projection_view");
-	uniforms["vertex_diffuse_colour"] = glGetUniformLocation(shaderProgram, "vertex_diffuse_colour");
-	uniforms["vertex_ambient_colour"] = glGetUniformLocation(shaderProgram, "vertex_ambient_colour");
-	uniforms["vertex_spec_colour"] = glGetUniformLocation(shaderProgram, "vertex_spec_colour");
-	uniforms["vertex_shininess"] = glGetUniformLocation(shaderProgram, "vertex_shininess");
-	uniforms["specular_smudge_factor"] = glGetUniformLocation(shaderProgram, "specular_smudge_factor");
-	uniforms["is_vertex_shiney"] = glGetUniformLocation(shaderProgram, "is_vertex_shiney");
-	uniforms["camera_position"] = glGetUniformLocation(shaderProgram, "camera_position");
-
-	uniforms["global_ambient_light"] = glGetUniformLocation(shaderProgram, "global_ambient_light");
-
-	uniforms["MAX_LIGHTS"] = glGetUniformLocation(shaderProgram, "MAX_LIGHTS");
-	uniforms["MAX_SPOT_LIGHTS"] = glGetUniformLocation(shaderProgram, "MAX_SPOT_LIGHTS");
-	uniforms["MAX_DIR_LIGHTS"] = glGetUniformLocation(shaderProgram, "MAX_DIR_LIGHTS");
-
-	uniforms["has_diff_tex"] = glGetUniformLocation(shaderProgram, "has_diff_tex");
+	uniforms["useTextures"] = glGetUniformLocation(shaderProgram, "useTextures");
 
 #pragma endregion // Get the uniform locations
 }
@@ -140,21 +132,20 @@ LoadTexture(std::string textureName)
 	}
 }
 
-void MyView::LoadTextureArray(std::vector<std::string>& textureNames)
+void MyView::LoadTextureArray(std::vector<std::string>& textureNames, GLuint& shaderHandle, GLuint& textureArrayHandle, const char* samplerHandle)
 {
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	glActiveTexture(GL_TEXTURE0);
-	glGenTextures(1, &texture_vbo);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, texture_vbo);
-	auto bob = glGetUniformLocation(shaderProgram, "textureArray");
-	glUniform1i(3, 0);
+	glGenTextures(1, &textureArrayHandle);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, textureArrayHandle);
+	auto textureArrayLocation = glGetUniformLocation(shaderHandle, samplerHandle);
+	glUniform1i(textureArrayLocation, 0);
 
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
-	//glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA, 1024, 1024, (int)textureNames.size(), 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
 	glTexStorage3D(GL_TEXTURE_2D_ARRAY, 11, GL_RGBA8, 1024, 1024, (int)textureNames.size());
 	GLenum pixel_formats[] = { 0, GL_RED, GL_RG, GL_RGB, GL_RGBA };
 	for (unsigned int i = 0; i < textureNames.size(); ++i)
@@ -174,7 +165,6 @@ void MyView::LoadTextureArray(std::vector<std::string>& textureNames)
 		if (err != GL_NO_ERROR)
 			std::cerr << err << std::endl;
 	}
-
 	
 }
 
@@ -185,18 +175,12 @@ void MyView::ResetConsole()
 	std::cout << "ABOUT" << std::endl;
 	std::cout << "Reprise My Sponza - Real Time Graphics ICA 1" << std::endl;
 	std::cout << "P4011584 - Frederic Babord 2016 - 2017" << std::endl << std::endl;
-	/*std::cout << "Submission date: 04th February 2016" << std::endl << std::endl;
+	std::cout << "Submission date: 28th October 2016" << std::endl << std::endl;
 	std::cout << "INSTRUCTIONS" << std::endl;
-	std::cout << "Press F1 to enable camera animation." << std::endl;
-	std::cout << "Press F2 to view the direction of the vertex normals." << std::endl;
-	std::cout << "Press F3 to enable wireframe mode." << std::endl;
-	std::cout << "Press F4 to change rendering mode (Fill, Line, Point)." << std::endl;
+	std::cout << "Press F1 to toggle material textures." << std::endl;
+	std::cout << "Press F2 to enable camera animation." << std::endl;
 	std::cout << "Press F5 to recompile the shader." << std::endl << std::endl;
-	std::cout << "Press Q to reduce the normal line length." << std::endl;
-	std::cout << "Press E to increase the normal line length." << std::endl;
-	std::cout << "Press Z to reduce the specular intensity smudge factor." << std::endl;
-	std::cout << "Press C to increase the specular intensity smudge factor." << std::endl << std::endl;
-	std::cout << "Press Esc to Close." << std::endl << std::endl;*/
+	std::cout << "Press Esc to Close." << std::endl << std::endl;
 
 }
 
@@ -210,70 +194,68 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 #pragma region
 
-	//Load the textures into a map of handles
-	//LoadTexture("resource:///hex.png");
+	// Load the textures into an array
 
-	std::vector<std::string> textureNames;
-	textureNames.push_back("content:///vase_dif.png");
-	textureNames.push_back("content:///Hook.png");
-	textureNames.push_back("content:///sponza_thorn_diff.png");
-	textureNames.push_back("content:///lion.png");
-	textureNames.push_back("content:///vase_round.png");
-	textureNames.push_back("content:///sponza_thorn_diff.png");
-	textureNames.push_back("content:///background.png");
-	textureNames.push_back("content:///flagPole.png");
-	textureNames.push_back("content:///sponza_thorn_diff.png");
-	textureNames.push_back("content:///spnza_bricks_a_diff.png");
-	textureNames.push_back("content:///sponza_thorn_diff.png");
-	textureNames.push_back("content:///sponza_floor_a_diff.png");
-	textureNames.push_back("content:///sponza_fabric_green_diff.png");
-	textureNames.push_back("content:///sponza_roof_diff.png");
-	textureNames.push_back("content:///sponza_flagpole_diff.png");
-	textureNames.push_back("content:///sponza_thorn_diff.png");
-	textureNames.push_back("content:///spnza_bricks_a_diff.png");
-	textureNames.push_back("content:///spnza_bricks_a_diff.png");
-	textureNames.push_back("content:///sponza_thorn_diff.png");
-	textureNames.push_back("content:///chain_texture.png");
-	textureNames.push_back("content:///vase_round.png");
-	textureNames.push_back("content:///sponza_thorn_diff.png");
-	textureNames.push_back("content:///sponza_thorn_diff.png");
-	textureNames.push_back("content:///sponza_thorn_diff.png");
-	textureNames.push_back("content:///sponza_curtain_diff.png");
-	textureNames.push_back("content:///sponza_roof_diff.png");
-	textureNames.push_back("content:///sponza_thorn_diff.png");
+	std::vector<std::string> diffuseTextureNames;
+	diffuseTextureNames.push_back("content:///vase_dif.png");
+	diffuseTextureNames.push_back("content:///Hook.png");
+	diffuseTextureNames.push_back("content:///sponza_thorn_diff.png");
+	diffuseTextureNames.push_back("content:///lion.png");
+	diffuseTextureNames.push_back("content:///vase_round.png");
+	diffuseTextureNames.push_back("content:///sponza_thorn_diff.png");
+	diffuseTextureNames.push_back("content:///background.png");
+	diffuseTextureNames.push_back("content:///flagPole.png");
+	diffuseTextureNames.push_back("content:///sponza_thorn_diff.png");
+	diffuseTextureNames.push_back("content:///spnza_bricks_a_diff.png");
+	diffuseTextureNames.push_back("content:///sponza_thorn_diff.png");
+	diffuseTextureNames.push_back("content:///sponza_floor_a_diff.png");
+	diffuseTextureNames.push_back("content:///sponza_fabric_green_diff.png");
+	diffuseTextureNames.push_back("content:///sponza_roof_diff.png");
+	diffuseTextureNames.push_back("content:///sponza_flagpole_diff.png");
+	diffuseTextureNames.push_back("content:///sponza_thorn_diff.png");
+	diffuseTextureNames.push_back("content:///spnza_bricks_a_diff.png");
+	diffuseTextureNames.push_back("content:///spnza_bricks_a_diff.png");
+	diffuseTextureNames.push_back("content:///sponza_thorn_diff.png");
+	diffuseTextureNames.push_back("content:///chain_texture.png");
+	diffuseTextureNames.push_back("content:///vase_round.png");
+	diffuseTextureNames.push_back("content:///sponza_thorn_diff.png");
+	diffuseTextureNames.push_back("content:///sponza_thorn_diff.png");
+	diffuseTextureNames.push_back("content:///sponza_thorn_diff.png");
+	diffuseTextureNames.push_back("content:///sponza_curtain_diff.png");
+	diffuseTextureNames.push_back("content:///sponza_roof_diff.png");
+	diffuseTextureNames.push_back("content:///sponza_thorn_diff.png");
 
-	/*
-	vases
-hanger
-unknown
-lion heads
-plant pots
-unknown
-shield
-flag poles
-unknown
-main walls
-bottom foliage
-floor
-drapes
-roof
-curtain poles
-unknown
-oter walls
-inner walls
-unkown
-chain
-hanging pots
-upper foliage
-upper foliage
-unkown
-drapes
-upper floor
-friend 1
-friend 2
-friend 3
-	*/
-	LoadTextureArray(textureNames);
+	std::vector<std::string> specularTextureNames;
+	specularTextureNames.push_back("content:///SpecularMaps/vase_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/Hook_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/lion_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/vase_round_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/background_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/flagPole_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/spnza_bricks_a_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/sponza_floor_a_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/sponza_fabric_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/sponza_roof_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/sponza_flagpole_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/spnza_bricks_a_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/spnza_bricks_a_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/chain_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/vase_round_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/sponza_fabric_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/sponza_roof_spec.png");
+	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
+
+	LoadTextureArray(diffuseTextureNames, shaderProgram, diffuse_texture_vbo, "textureArray");
+	//LoadTextureArray(specularTextureNames, shaderProgram, specular_texture_vbo, "specularTextureArray");
 
 	//Create the light vector so there will be memory already reserved that can just be overwritten if values have been changed. This has been done on 
 	//start for effiences in the constant render loop function.
@@ -285,9 +267,9 @@ friend 3
 		light.range = pointLightsRef[i].getRange();
 		light.intensity = (const glm::vec3&) pointLightsRef[i].getIntensity();
 		light.padding = 0.0f;
-		pointLights.data[i] = light;
+		dataBlock.pointLights[i] = light;
 	}
-
+	dataBlock.maxPointLights = pointLightsRef.size();
 
 
 	auto& directionalLightRef = scene_->getAllDirectionalLights();
@@ -298,8 +280,9 @@ friend 3
 		light.intensity = (const glm::vec3&) directionalLightRef[i].getIntensity();
 		light.padding1 = 0.0f;
 		light.padding2 = 0.0f;
-		directionalLights.data[i] = light;
+		dataBlock.directionalLights[i] = light;
 	}
+	dataBlock.maxDirectionalLights = directionalLightRef.size();
 
 	GLenum err = glGetError();
 	if (err != GL_NO_ERROR)
@@ -315,9 +298,10 @@ friend 3
 		light.coneAngle = spotLightRef[i].getConeAngleDegrees();
 		light.range = spotLightRef[i].getRange();
 		light.castShadow = spotLightRef[i].getCastShadow();
-		spotLights.data[i] = light;
+		dataBlock.spotLights[i] = light;
 	}
-
+	dataBlock.maxSpotlights = spotLightRef.size();
+	dataBlock.globalAmbientLight = (const glm::vec3&)scene_->getAmbientLightIntensity();
 
 #pragma endregion // Textures and Lights
 
@@ -359,12 +343,6 @@ friend 3
 		elements.insert(elements.end(), elementsArr.begin(), elementsArr.end());
 		newMesh.element_count = elementsArr.size();
 
-		auto insts = scene_->getInstancesByMeshId(scene_mesh.getId());
-
-		for (const auto& inst : insts)
-		{
-			
-		}
 	}
 
 	err = glGetError();
@@ -494,9 +472,6 @@ friend 3
 		std::cerr << err << std::endl;
 #pragma endregion //Load the mesh into buffers
 
-
-
-
 #pragma region
 	int commandInt = 0;
 	int counter = 0;
@@ -527,39 +502,18 @@ friend 3
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 #pragma endregion // Command Data
 
-
-
 #pragma region 
+	glGenBuffers(1, &dataBlockUBO);
+	glBindBuffer(GL_UNIFORM_BUFFER, dataBlockUBO);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(DataBlock), &dataBlock, GL_STREAM_DRAW);
 
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, dataBlockUBO);
+	glUniformBlockBinding(shaderProgram, glGetUniformBlockIndex(shaderProgram, "DataBlock"), 0);
 
-	glGenBuffers(1, &spotLightUBO);
-	glBindBuffer(GL_UNIFORM_BUFFER, spotLightUBO);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(SpotLights), &spotLights, GL_STREAM_DRAW);
-
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, spotLightUBO);
-	glUniformBlockBinding( shaderProgram, glGetUniformBlockIndex(shaderProgram, "SpotLightBlock"), 0);
-	
-
-	glGenBuffers(1, &pointLightUBO);
-	glBindBuffer(GL_UNIFORM_BUFFER, pointLightUBO);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(PointLights), &pointLights, GL_STREAM_DRAW);
-
-	glBindBufferBase(GL_UNIFORM_BUFFER, 1, pointLightUBO);
-	glUniformBlockBinding(shaderProgram, glGetUniformBlockIndex(shaderProgram, "PointLightBlock"), 1);
-
-
-	glGenBuffers(1, &directionalLightUBO);
-	glBindBuffer(GL_UNIFORM_BUFFER, directionalLightUBO);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(DirectionalLights), &directionalLights, GL_STREAM_DRAW);
-
-	glBindBufferBase(GL_UNIFORM_BUFFER, 2, directionalLightUBO);
-	glUniformBlockBinding(shaderProgram,glGetUniformBlockIndex(shaderProgram, "DirectionalLightBlock"), 2);
-
-#pragma endregion //UBOs
+#pragma endregion //UBO
 
 	glBindVertexArray(0);
-
-
+	
 	err = glGetError();
 	if (err != GL_NO_ERROR)
 		std::cerr << err << std::endl;
@@ -582,9 +536,7 @@ void MyView::windowViewDidStop(tygra::Window * window)
 	glDeleteBuffers(1, &element_vbo);
 	glDeleteBuffers(1, &instance_vbo);
 	glDeleteBuffers(1, &material_vbo);
-	glDeleteBuffers(1, &spotLightUBO);
-	glDeleteBuffers(1, &pointLightUBO);
-	glDeleteBuffers(1, &directionalLightUBO);
+	glDeleteBuffers(1, &dataBlockUBO);
 	glDeleteBuffers(1, &commandBuffer);
 	glDeleteVertexArrays(1, &vao);
 }
@@ -592,12 +544,15 @@ void MyView::windowViewDidStop(tygra::Window * window)
 void MyView::windowViewRender(tygra::Window * window)
 {
     assert(scene_ != nullptr);
-
-	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
-
+	glDepthMask(GL_TRUE);
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	glClearColor(0.556f, 0.822f, 1.0f, 0.f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LEQUAL);
+	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
 	GLint viewport_size[4];
 	glGetIntegerv(GL_VIEWPORT, viewport_size);
@@ -610,9 +565,6 @@ void MyView::windowViewRender(tygra::Window * window)
 	glm::mat4 projection_xform = glm::perspective(glm::radians(scene_->getCamera().getVerticalFieldOfViewInDegrees()), aspect_ratio, scene_->getCamera().getNearPlaneDistance(), scene_->getCamera().getFarPlaneDistance());
 	glm::mat4 view_xform = glm::lookAt((const glm::vec3&)scene_->getCamera().getPosition(), (const glm::vec3&)scene_->getCamera().getPosition() + (const glm::vec3&)scene_->getCamera().getDirection(), (const glm::vec3&)scene_->getUpDirection());
 
-	glUniform3fv(uniforms["camera_position"], 1, glm::value_ptr((const glm::vec3&)scene_->getCamera().getPosition()));
-
-
 #pragma region Update sponzas lighting for this frame
 
 	/*
@@ -621,57 +573,36 @@ void MyView::windowViewRender(tygra::Window * window)
 	active and so that value is also passed out into the shader.
 	*/
 
-	glUniform1f(uniforms["MAX_LIGHTS"], (GLfloat)scene_->getAllPointLights().size());
-	glUniform1f(uniforms["MAX_SPOT_LIGHTS"], (GLfloat)scene_->getAllSpotLights().size());
-	glUniform1f(uniforms["MAX_DIR_LIGHTS"], (GLfloat)scene_->getAllDirectionalLights().size());
 
-	
+	glUniform1i(uniforms["useTextures"], useTextures);
 
 	auto& spotLightRef = scene_->getAllSpotLights();
 	for (unsigned int i = 0; i < spotLightRef.size(); ++i)
 	{
-		spotLights.data[i].direction = glm::normalize((const glm::vec3&) spotLightRef[i].getDirection());
-		spotLights.data[i].intensity = (const glm::vec3&) spotLightRef[i].getIntensity();
-		spotLights.data[i].position = (const glm::vec3&) spotLightRef[i].getPosition();
-		spotLights.data[i].coneAngle = spotLightRef[i].getConeAngleDegrees();
-		spotLights.data[i].range = spotLightRef[i].getRange();
-		spotLights.data[i].castShadow = spotLightRef[i].getCastShadow();
+		dataBlock.spotLights[i].direction = glm::normalize((const glm::vec3&) spotLightRef[i].getDirection());
+		dataBlock.spotLights[i].intensity = (const glm::vec3&) spotLightRef[i].getIntensity();
+		dataBlock.spotLights[i].position = (const glm::vec3&) spotLightRef[i].getPosition();
+		dataBlock.spotLights[i].coneAngle = spotLightRef[i].getConeAngleDegrees();
+		dataBlock.spotLights[i].range = spotLightRef[i].getRange();
+		dataBlock.spotLights[i].castShadow = spotLightRef[i].getCastShadow();
 	}
-
-
-	glBindBuffer(GL_UNIFORM_BUFFER, spotLightUBO);
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(SpotLights), &spotLights);
 
 	for (unsigned int i = 0; i < scene_->getAllPointLights().size(); ++i)
 	{
-		pointLights.data[i].position = (const glm::vec3&)scene_->getAllPointLights()[i].getPosition();
-		pointLights.data[i].range = scene_->getAllPointLights()[i].getRange();
-		pointLights.data[i].intensity = (const glm::vec3&)scene_->getAllPointLights()[i].getIntensity();
-	}
-	glBindBuffer(GL_UNIFORM_BUFFER, pointLightUBO);
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(PointLights), &pointLights.data);
-
-	auto& directionalLightRef = scene_->getAllDirectionalLights();
-	for (unsigned int i = 0; i < directionalLightRef.size(); ++i)
-	{
-		directionalLights.data[i].direction = (const glm::vec3&) directionalLightRef[i].getDirection();
-		directionalLights.data[i].padding1 = 0.0f;
-		directionalLights.data[i].intensity = (const glm::vec3&) directionalLightRef[i].getIntensity();
-		directionalLights.data[i].padding2 = 0.0f;
+		dataBlock.pointLights[i].position = (const glm::vec3&)scene_->getAllPointLights()[i].getPosition();
+		dataBlock.pointLights[i].range = scene_->getAllPointLights()[i].getRange();
+		dataBlock.pointLights[i].intensity = (const glm::vec3&)scene_->getAllPointLights()[i].getIntensity();
 	}
 
-	glBindBuffer(GL_UNIFORM_BUFFER, directionalLightUBO);
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(DirectionalLights), &directionalLights);
+	glBindBuffer(GL_UNIFORM_BUFFER, dataBlockUBO);
+	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(SpotLight) * 15 + sizeof(PointLight) * 22, &dataBlock);
+	dataBlock.cameraPosition = (const glm::vec3&)scene_->getCamera().getPosition();
+	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(SpotLight) * 15 + sizeof(PointLight) * 22 + sizeof(DirectionalLight) * 3, sizeof(glm::vec3), &dataBlock);
 
-
-	
-
-	glUniform3fv(uniforms["global_ambient_light"], 1, glm::value_ptr((const glm::vec3&)scene_->getAmbientLightIntensity()));
 
 #pragma endregion 
 
-
-#pragma region Draw call for rendering normal sponza
+#pragma region Update data changed this frame
 
 
 	glm::mat4 projection_view = projection_xform * view_xform;
@@ -696,7 +627,21 @@ void MyView::windowViewRender(tygra::Window * window)
 		glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
 		glBufferSubData(GL_ARRAY_BUFFER, firstMatCounter *  sizeof(glm::mat4), sizeof(glm::mat4) * (instances.size()), glm::value_ptr(matrices[firstMatCounter]));
 	}
-		
+#pragma endregion 
+
+#pragma region Draw call for rendering normal sponza
+
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
+	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, meshes_.size(), 0);
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+
+#pragma endregion 
+
+	glDepthMask(GL_FALSE);
+	glDepthFunc(GL_EQUAL);
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+#pragma region Draw call for rendering normal sponza
+
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
 	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, meshes_.size(), 0);
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
