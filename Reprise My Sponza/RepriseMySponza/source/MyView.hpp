@@ -8,6 +8,7 @@
 #include <vector>
 #include <unordered_map>
 #include <map>
+#include "Skybox.h"
 
 #define MAX_SPOTLIGHTS 15
 #define MAX_POINTLIGHTS 22
@@ -135,9 +136,8 @@ private:
 	
 
 	GLuint shaderProgram;
-	GLuint vertex_shader;
-	GLuint fragment_shader;
-	
+	GLuint skybox_shaderProgram;
+	Skybox* skybox;
 
 	GLuint vao; // VertexArrayObject for the shape's vertex array settings
 	GLuint vertex_vbo;

@@ -27,12 +27,24 @@
     <ClCompile Include="source\MyController.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="source\Skybox.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\CubeMap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="source\MyView.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="source\MyController.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Cubemap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\Skybox.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -45,6 +57,12 @@
     </None>
     <None Include="doc\readme.txt">
       <Filter>Document Files</Filter>
+    </None>
+    <None Include="shaders\SkyboxFragmentShader.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="shaders\SkyboxVertexShader.glsl">
+      <Filter>Shader Files</Filter>
     </None>
   </ItemGroup>
 </Project>

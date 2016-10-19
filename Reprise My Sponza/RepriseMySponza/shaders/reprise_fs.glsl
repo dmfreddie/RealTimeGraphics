@@ -69,13 +69,16 @@ void main(void)
 	final_colour = PointLightCalc(final_colour);
 
 	//final_colour *= texture(textureArray, vec3(text_coord.x, text_coord.y, vert_diffuse_texture_ID)).xyz;
-	#ifdef GL_EXT_texture_array
-	if(vert_diffuse_texture_ID < 27 && useTextures)
-		final_colour *= texture2DArray(textureArray, vec3(text_coord, vert_diffuse_texture_ID)).rgb;
-	#else
-	if(vert_diffuse_texture_ID < 27 && useTextures)
-		final_colour *= texture(textureArray, vec3(text_coord.x, text_coord.y, vert_diffuse_texture_ID)).xyz;
-	#endif
+	if(useTextures)
+	{
+		#ifdef GL_EXT_texture_array
+		if(vert_diffuse_texture_ID < 27)
+			final_colour *= texture2DArray(textureArray, vec3(text_coord, vert_diffuse_texture_ID)).rgb;
+		#else
+		if(vert_diffuse_texture_ID < 27)
+			final_colour *= texture(textureArray, vec3(text_coord, vert_diffuse_texture_ID)).xyz;
+		#endif
+	}
 	fragment_colour = vec4(final_colour, 1.0);
 }
 

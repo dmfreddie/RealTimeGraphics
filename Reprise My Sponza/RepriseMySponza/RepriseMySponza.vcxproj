@@ -163,17 +163,23 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="source\CubeMap.cpp" />
     <ClCompile Include="source\main.cpp" />
     <ClCompile Include="source\MyController.cpp" />
     <ClCompile Include="source\MyView.cpp" />
+    <ClCompile Include="source\Skybox.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="source\Cubemap.h" />
     <ClInclude Include="source\MyController.hpp" />
     <ClInclude Include="source\MyView.hpp" />
+    <ClInclude Include="source\Skybox.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\reprise_fs.glsl" />
     <None Include="shaders\reprise_vs.glsl" />
+    <None Include="shaders\SkyboxFragmentShader.glsl" />
+    <None Include="shaders\SkyboxVertexShader.glsl" />
   </ItemGroup>
   <ItemGroup>
     <None Include="doc\readme.txt" />

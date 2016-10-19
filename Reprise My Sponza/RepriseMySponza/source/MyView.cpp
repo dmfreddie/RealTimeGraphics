@@ -8,7 +8,7 @@
 #include <iostream>
 #include <cassert>
 
-MyView::MyView() : shaderProgram(0)
+MyView::MyView() : shaderProgram(0), skybox_shaderProgram(0)
 {
 }
 
@@ -65,6 +65,10 @@ CheckLinkStatus(GLuint shaderProgram)
 
 void MyView::CompileShaders()
 {
+	//NORMAL
+
+	GLuint vertex_shader;
+	GLuint fragment_shader;
 	CompileShader("resource:///reprise_vs.glsl", GL_VERTEX_SHADER, vertex_shader);
 	CompileShader("resource:///reprise_fs.glsl", GL_FRAGMENT_SHADER, fragment_shader);
 
@@ -80,10 +84,28 @@ void MyView::CompileShaders()
 	glDeleteShader(fragment_shader);
 	glLinkProgram(shaderProgram);
 
+	// SKYBOX
+
+	GLuint skybox_vertex_shader;
+	GLuint skybox_fragment_shader;
+	CompileShader("resource:///SkyboxVertexShader.glsl", GL_VERTEX_SHADER, skybox_vertex_shader);
+	CompileShader("resource:///SkyboxFragmentShader.glsl", GL_FRAGMENT_SHADER, skybox_fragment_shader);
+
+
+	skybox_shaderProgram = glCreateProgram();
+	glAttachShader(skybox_shaderProgram, skybox_vertex_shader);
+	glBindAttribLocation(skybox_shaderProgram, 0, "vertex_position");
+
+	glDeleteShader(skybox_vertex_shader);
+	glAttachShader(skybox_shaderProgram, skybox_fragment_shader);
+	glDeleteShader(skybox_fragment_shader);
+	glLinkProgram(skybox_shaderProgram);
+
 	
-	if (CheckLinkStatus(shaderProgram))
+	if (CheckLinkStatus(shaderProgram) && CheckLinkStatus(skybox_shaderProgram))
 		std::cout << "Shaders Compiled!" << std::endl;
 
+	glUseProgram(shaderProgram);
 	Getuniforms();
 }
 
@@ -135,8 +157,9 @@ LoadTexture(std::string textureName)
 void MyView::LoadTextureArray(std::vector<std::string>& textureNames, GLuint& shaderHandle, GLuint& textureArrayHandle, const char* samplerHandle)
 {
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	glActiveTexture(GL_TEXTURE0);
 	glGenTextures(1, &textureArrayHandle);
+	glActiveTexture(GL_TEXTURE0 + textureArrayHandle - 1);
+	
 	glBindTexture(GL_TEXTURE_2D_ARRAY, textureArrayHandle);
 	auto textureArrayLocation = glGetUniformLocation(shaderHandle, samplerHandle);
 	glUniform1i(textureArrayLocation, 0);
@@ -256,6 +279,22 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	LoadTextureArray(diffuseTextureNames, shaderProgram, diffuse_texture_array_handle, "textureArray");
 	//LoadTextureArray(specularTextureNames, shaderProgram, specular_texture_array_handle, "specularTextureArray");
+
+
+	// SKYBOX
+
+	skybox = new Skybox(
+		"content:///Skybox/SunSetRight2048.png",
+		"content:///Skybox/SunSetLeft2048.png",
+		"content:///Skybox/SunSetFront2048.png",
+		"content:///Skybox/SunSetBack2048.png",
+		"content:///Skybox/SunSetUp2048.png",
+		"content:///Skybox/SunSetDown2048.png",
+		skybox_shaderProgram,
+		"skybox");
+	
+
+
 
 	//Create the light vector so there will be memory already reserved that can just be overwritten if values have been changed. This has been done on 
 	//start for effiences in the constant render loop function.
@@ -529,8 +568,7 @@ void MyView::windowViewDidReset(tygra::Window * window,
 void MyView::windowViewDidStop(tygra::Window * window)
 {
 	glDeleteProgram(shaderProgram);
-	glDeleteShader(vertex_shader);
-	glDeleteShader(fragment_shader);
+	glDeleteProgram(skybox_shaderProgram);
 	glDeleteBuffers(1, &vertex_vbo);
 	glDeleteBuffers(1, &element_vbo);
 	glDeleteBuffers(1, &instance_vbo);
@@ -543,26 +581,57 @@ void MyView::windowViewDidStop(tygra::Window * window)
 void MyView::windowViewRender(tygra::Window * window)
 {
     assert(scene_ != nullptr);
+	
+	GLint viewport_size[4];
+	glGetIntegerv(GL_VIEWPORT, viewport_size);
+	const float aspect_ratio = viewport_size[2] / (float)viewport_size[3];
+
 	glEnable(GL_CULL_FACE);
 	glDepthMask(GL_TRUE);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	glClearColor(0.556f, 0.822f, 1.0f, 0.f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+
+	glm::mat4 projection_xform = glm::perspective(glm::radians(scene_->getCamera().getVerticalFieldOfViewInDegrees()), aspect_ratio, scene_->getCamera().getNearPlaneDistance(), scene_->getCamera().getFarPlaneDistance());
+	glm::mat4 view_xform = glm::lookAt((const glm::vec3&)scene_->getCamera().getPosition(), (const glm::vec3&)scene_->getCamera().getPosition() + (const glm::vec3&)scene_->getCamera().getDirection(), (const glm::vec3&)scene_->getUpDirection());
+	glm::mat4 projection_view = projection_xform * view_xform;
+
+#pragma region Draw call for rendering the skybox
+
+
+	glDepthMask(GL_FALSE);
+	glDisable(GL_DEPTH_TEST);
+	glUseProgram(skybox_shaderProgram);
+	glm::mat4 mvp = glm::mat4(glm::mat3(projection_view));
+	glUniformMatrix4fv(glGetUniformLocation(skybox_shaderProgram, "MVP"), 1, GL_FALSE, &mvp[0][0]);
+
+	glm::mat4 m = glm::mat4(1.0);
+	glUniformMatrix4fv(glGetUniformLocation(skybox_shaderProgram, "model"), 1, GL_FALSE, &m[0][0]);
+	glm::mat4 v = view_xform;
+	glUniformMatrix4fv(glGetUniformLocation(skybox_shaderProgram, "view"), 1, GL_FALSE, &v[0][0]);
+	glm::mat4 p = projection_xform;
+	glUniformMatrix4fv(glGetUniformLocation(skybox_shaderProgram, "projection"), 1, GL_FALSE, &p[0][0]);
+	skybox->Bind();
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, skybox->GetTextureID());
+	glDrawArrays(GL_TRIANGLES, 0, 36);
+	skybox->Unbind();
+	glEnable(GL_DEPTH_TEST);
+	glDepthMask(GL_TRUE);
+#pragma endregion 
+
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
 	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
-	GLint viewport_size[4];
-	glGetIntegerv(GL_VIEWPORT, viewport_size);
-	const float aspect_ratio = viewport_size[2] / (float)viewport_size[3];
+	
 
 	//Use the initial shader program to render sponza normally
 	
 	glBindVertexArray(vao);
 
-	glm::mat4 projection_xform = glm::perspective(glm::radians(scene_->getCamera().getVerticalFieldOfViewInDegrees()), aspect_ratio, scene_->getCamera().getNearPlaneDistance(), scene_->getCamera().getFarPlaneDistance());
-	glm::mat4 view_xform = glm::lookAt((const glm::vec3&)scene_->getCamera().getPosition(), (const glm::vec3&)scene_->getCamera().getPosition() + (const glm::vec3&)scene_->getCamera().getDirection(), (const glm::vec3&)scene_->getUpDirection());
+	glUseProgram(shaderProgram);
 
 #pragma region Update sponzas lighting for this frame
 
@@ -604,12 +673,11 @@ void MyView::windowViewRender(tygra::Window * window)
 #pragma region Update data changed this frame
 
 
-	glm::mat4 projection_view = projection_xform * view_xform;
+	
 	glUniformMatrix4fv(uniforms["projection_view"], 1, GL_FALSE, glm::value_ptr(projection_view));
 	
 
 	int counter = 0;
-	int firstMatCounter = 0;
 	for (const auto &mesh : meshes_) 
 	{
 		
@@ -624,7 +692,7 @@ void MyView::windowViewRender(tygra::Window * window)
 			counter++;
 		}
 		glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
-		glBufferSubData(GL_ARRAY_BUFFER, firstMatCounter *  sizeof(glm::mat4), sizeof(glm::mat4) * (instances.size()), glm::value_ptr(matrices[firstMatCounter]));
+		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(glm::mat4) * (instances.size()), glm::value_ptr(matrices[0]));
 	}
 #pragma endregion 
 
@@ -638,7 +706,30 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	glDepthMask(GL_FALSE);
 	glDepthFunc(GL_EQUAL);
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+#pragma region Multipass rednering
+//	for (int i = 0; i < scene_->getAllPointLights().size(); ++i)
+//	{
+//		if (i==0)
+//			glDisable(GL_BLEND);
+//		else {
+//			glEnable(GL_BLEND);
+//			glBlendFunc(GL_ONE, GL_ONE);
+//			glDepthFunc(GL_EQUAL);
+//			glDepthMask(GL_FALSE);
+//
+//#pragma region Draw call for rendering normal sponza
+//
+//			glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
+//			glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, meshes_.size(), 0);
+//			glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+//
+//#pragma endregion
+//		}
+//	}
+#pragma endregion 
+
 #pragma region Draw call for rendering normal sponza
 
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
@@ -646,4 +737,6 @@ void MyView::windowViewRender(tygra::Window * window)
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 
 #pragma endregion 
+
+
 }
