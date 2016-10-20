@@ -68,6 +68,11 @@ Skybox::Skybox(const char* rightFace, const char* leftFace, const char* frontFac
 	glBindVertexArray(0);
 }
 
+Skybox::~Skybox()
+{
+	glDeleteBuffers(1, &VBO);
+	glDeleteVertexArrays(1, &VAO);
+}
 void Skybox::Bind()
 {
 	glBindVertexArray(VAO);

@@ -569,6 +569,7 @@ void MyView::windowViewDidStop(tygra::Window * window)
 {
 	glDeleteProgram(shaderProgram);
 	glDeleteProgram(skybox_shaderProgram);
+	delete skybox;
 	glDeleteBuffers(1, &vertex_vbo);
 	glDeleteBuffers(1, &element_vbo);
 	glDeleteBuffers(1, &instance_vbo);
