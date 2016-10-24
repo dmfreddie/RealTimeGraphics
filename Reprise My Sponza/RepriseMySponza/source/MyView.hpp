@@ -85,6 +85,33 @@ struct DataBlock
 	float maxSpotlights;
 };
 
+struct PointLightDataBlock
+{
+	PointLight pointLights[22];
+	glm::vec3 cameraPosition;
+	float maxPointLights;
+};
+
+struct SpotLightDataBlock
+{
+	SpotLight spotLights[15];
+	glm::vec3 cameraPosition;
+	float maxSpotLights;
+};
+
+struct DirectionalLightDataBlock
+{
+	DirectionalLight directionalLights[3];
+	glm::vec3 cameraPosition;
+	float maxDirectional;
+};
+
+struct AmbientLightBlock
+{
+	glm::vec3 cameraPosition;
+	glm::vec3 ambient_light;;
+};
+
 class MyView : public tygra::WindowViewDelegate
 {
 public:
@@ -126,15 +153,23 @@ private:
 	std::unordered_map<std::string, GLuint> textures;
 	std::unordered_map<std::string, GLuint> uniforms;
 	std::vector<glm::mat4> matrices;
-	DataBlock dataBlock;
+	//DataBlock dataBlock;
 
-	
+	PointLightDataBlock pointLightBlock;
+	SpotLightDataBlock spotLightDataBlock;
+	DirectionalLightDataBlock directionalLightDataBlock;
+	AmbientLightBlock ambientLightBlock;
+
 	DrawElementsIndirectCommand commands[30];
 	
 
 	GLuint shaderProgram;
 	GLuint skybox_shaderProgram;
 	Skybox* skybox;
+
+	GLuint pointLightShaderProgram;
+	GLuint spotLightShaderProgram;
+	GLuint directionalLightShaderProgram;
 
 	GLuint vao; // VertexArrayObject for the shape's vertex array settings
 	GLuint vertex_vbo;
@@ -143,7 +178,11 @@ private:
 	GLuint material_vbo;
 	GLuint diffuse_texture_array_handle;
 	GLuint specular_texture_array_handle;
-	GLuint dataBlockUBO;
+	//GLuint dataBlockUBO;
+	GLuint ambientLightUBO;
+	GLuint pointLightBlockUBO;
+	GLuint spotLightBlockUBO;
+	GLuint directionalLightBlockUBO;
 	GLuint commandBuffer;
 
 
