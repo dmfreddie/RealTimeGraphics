@@ -64,5 +64,29 @@
     <None Include="shaders\SkyboxVertexShader.glsl">
       <Filter>Shader Files</Filter>
     </None>
+    <None Include="shaders\Multipass_amb_fs.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="shaders\Multipass_amb_vs.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="shaders\Multipass_dl_fs.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="shaders\Multipass_dl_vs.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="shaders\Multipass_pl_fs.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="shaders\Multipass_pl_vs.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="shaders\Multipass_sl_fs.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="shaders\Multipass_sl_vs.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

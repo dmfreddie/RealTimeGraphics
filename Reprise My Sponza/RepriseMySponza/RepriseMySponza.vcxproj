@@ -176,6 +176,14 @@
     <ClInclude Include="source\Skybox.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="shaders\Multipass_amb_vs.glsl" />
+    <None Include="shaders\Multipass_amb_fs.glsl" />
+    <None Include="shaders\Multipass_dl_fs.glsl" />
+    <None Include="shaders\Multipass_dl_vs.glsl" />
+    <None Include="shaders\Multipass_pl_fs.glsl" />
+    <None Include="shaders\Multipass_pl_vs.glsl" />
+    <None Include="shaders\Multipass_sl_fs.glsl" />
+    <None Include="shaders\Multipass_sl_vs.glsl" />
     <None Include="shaders\reprise_fs.glsl" />
     <None Include="shaders\reprise_vs.glsl" />
     <None Include="shaders\SkyboxFragmentShader.glsl" />

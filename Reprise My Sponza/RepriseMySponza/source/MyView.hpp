@@ -14,9 +14,6 @@
 #define MAX_POINTLIGHTS 22
 #define MAX_DIRECTIONALLIGHTS 5
 
-
-// TODO: Texture Arrays are broken on loading
-
 struct DrawElementsIndirectCommand
 {
 	GLuint vertexCount;
