@@ -9,7 +9,7 @@ struct DirectionalLight
 	float padding2;
 };
 
-layout(std140, binding = 0) uniform DataBlock{
+layout(std140) uniform DataBlock{
 	DirectionalLight directionalLights[3];
 	vec3 camera_position;
 	float maxDirectionalLights;
@@ -45,10 +45,12 @@ vec3 DirLightCalc(vec3 colour)
 
 		float scaler = max(0.0, dot(normalize(vertexNormal), dir.direction));
 
+		vec3 diffuseIntensity = (dir.intensity * scaler);
+
 		if (vert_is_vertex_shiney > 0)
-			colour +=  (dir.intensity * scaler) + SpecularLight(dir.direction, dir.intensity);
+			colour +=  diffuseIntensity + SpecularLight(dir.direction, dir.intensity);
 		else
-			colour += (dir.intensity * scaler);
+			colour += diffuseIntensity;
 	}
 
 	return colour;

@@ -177,6 +177,8 @@ private:
 	GLuint instance_vbo; // VertexBufferObject for the model xforms
 	GLuint material_vbo;
 	GLuint diffuse_texture_array_handle;
+	GLuint sl_diffuse_texture_array_handle;
+	GLuint pl_diffuse_texture_array_handle;
 	GLuint specular_texture_array_handle;
 	//GLuint dataBlockUBO;
 	GLuint ambientLightUBO;

@@ -171,8 +171,10 @@ void MyView::Getuniforms()
 	uniforms["useTextures"] = glGetUniformLocation(shaderProgram, "useTextures");
 	glUseProgram(pointLightShaderProgram);
 	uniforms["projection_view_pl"] = glGetUniformLocation(pointLightShaderProgram, "projection_view");
+	uniforms["useTextures_pl"] = glGetUniformLocation(spotLightShaderProgram, "useTextures");
 	glUseProgram(spotLightShaderProgram);
 	uniforms["projection_view_sl"] = glGetUniformLocation(spotLightShaderProgram, "projection_view");
+	uniforms["useTextures_sl"] = glGetUniformLocation(spotLightShaderProgram, "useTextures");
 	glUseProgram(directionalLightShaderProgram);
 	uniforms["projection_view_dl"] = glGetUniformLocation(directionalLightShaderProgram, "projection_view");
 #pragma endregion // Get the uniform locations
@@ -332,6 +334,8 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
 
 	LoadTextureArray(diffuseTextureNames, shaderProgram, diffuse_texture_array_handle, "textureArray");
+	LoadTextureArray(diffuseTextureNames, spotLightShaderProgram, sl_diffuse_texture_array_handle, "textureArray");
+	LoadTextureArray(diffuseTextureNames, pointLightShaderProgram, pl_diffuse_texture_array_handle, "textureArray");
 	//LoadTextureArray(specularTextureNames, shaderProgram, specular_texture_array_handle, "specularTextureArray");
 
 
@@ -616,24 +620,24 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glBindBuffer(GL_UNIFORM_BUFFER, pointLightBlockUBO);
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(PointLightDataBlock), &pointLightBlock, GL_STREAM_DRAW);
 
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, pointLightBlockUBO);
-	glUniformBlockBinding(pointLightShaderProgram, glGetUniformBlockIndex(pointLightShaderProgram, "DataBlock"), 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, pointLightBlockUBO);
+	glUniformBlockBinding(pointLightShaderProgram, glGetUniformBlockIndex(pointLightShaderProgram, "DataBlock"), 1);
 
 
 	glGenBuffers(1, &spotLightBlockUBO);
 	glBindBuffer(GL_UNIFORM_BUFFER, spotLightBlockUBO);
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(SpotLightDataBlock), &spotLightDataBlock, GL_STREAM_DRAW);
 
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, spotLightBlockUBO);
-	glUniformBlockBinding(spotLightShaderProgram, glGetUniformBlockIndex(spotLightShaderProgram, "DataBlock"), 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 2, spotLightBlockUBO);
+	glUniformBlockBinding(spotLightShaderProgram, glGetUniformBlockIndex(spotLightShaderProgram, "DataBlock"), 2);
 
 
 	glGenBuffers(1, &directionalLightBlockUBO);
 	glBindBuffer(GL_UNIFORM_BUFFER, directionalLightBlockUBO);
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(DirectionalLightDataBlock), &directionalLightDataBlock, GL_STREAM_DRAW);
 
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, directionalLightBlockUBO);
-	glUniformBlockBinding(directionalLightShaderProgram, glGetUniformBlockIndex(directionalLightShaderProgram, "DataBlock"), 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 3, directionalLightBlockUBO);
+	glUniformBlockBinding(directionalLightShaderProgram, glGetUniformBlockIndex(directionalLightShaderProgram, "DataBlock"), 3);
 
 #pragma endregion 
 
@@ -690,6 +694,7 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	glDepthMask(GL_FALSE);
 	glDisable(GL_DEPTH_TEST);
+	glDisable(GL_BLEND);
 	glUseProgram(skybox_shaderProgram);
 	glm::mat4 mvp = glm::mat4(glm::mat3(projection_view));
 	glUniformMatrix4fv(glGetUniformLocation(skybox_shaderProgram, "MVP"), 1, GL_FALSE, &mvp[0][0]);
@@ -732,6 +737,7 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	glUniform1i(uniforms["useTextures"], useTextures);
 
+
 	auto& spotLightRef = scene_->getAllSpotLights();
 	for (unsigned int i = 0; i < spotLightRef.size(); ++i)
 	{
@@ -749,10 +755,7 @@ void MyView::windowViewRender(tygra::Window * window)
 		pointLightBlock.pointLights[i].range = scene_->getAllPointLights()[i].getRange();
 		pointLightBlock.pointLights[i].intensity = (const glm::vec3&)scene_->getAllPointLights()[i].getIntensity();
 	}
-
-	glBindBuffer(GL_UNIFORM_BUFFER, pointLightBlockUBO);
 	pointLightBlock.cameraPosition = (const glm::vec3&)scene_->getCamera().getPosition();
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(PointLightDataBlock), &pointLightBlock);
 
 	
 
@@ -769,9 +772,6 @@ void MyView::windowViewRender(tygra::Window * window)
 	
 	glUniformMatrix4fv(uniforms["projection_view"], 1, GL_FALSE, glm::value_ptr(projection_view));
 	
-	
-	
-
 	int counter = 0;
 	for (const auto &mesh : meshes_) 
 	{
@@ -803,7 +803,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	glDepthFunc(GL_EQUAL);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	
-	glUseProgram(shaderProgram);
+
 	glDisable(GL_BLEND);
 #pragma region Draw call for rendering normal sponza
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
@@ -815,15 +815,32 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	
 #pragma region Multipass rednering
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_ONE, GL_ONE);
+	glBlendEquation(GL_FUNC_ADD);
+	glDepthFunc(GL_EQUAL);
+	glDepthMask(GL_FALSE);
+
+
+		glUseProgram(directionalLightShaderProgram);
+		glUniformMatrix4fv(uniforms["projection_view_dl"], 1, GL_FALSE, glm::value_ptr(projection_view));
+		glBindBuffer(GL_UNIFORM_BUFFER, directionalLightBlockUBO);
+		directionalLightDataBlock.cameraPosition = (const glm::vec3&)scene_->getCamera().getPosition();
+		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(DirectionalLightDataBlock), &directionalLightDataBlock);
+	#pragma region Draw call for rendering normal sponza
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
+		glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, meshes_.size(), 0);
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+	#pragma endregion
+
+
 		glUseProgram(pointLightShaderProgram);
 		glUniformMatrix4fv(uniforms["projection_view_pl"], 1, GL_FALSE, glm::value_ptr(projection_view));
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_ONE, GL_ONE);
-		glBlendEquation(GL_FUNC_ADD);
-		glDepthFunc(GL_EQUAL);
-		glDepthMask(GL_FALSE);
-		
 		glBindBuffer(GL_UNIFORM_BUFFER, pointLightBlockUBO);
+		pointLightBlock.cameraPosition = (const glm::vec3&)scene_->getCamera().getPosition();
+		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(PointLightDataBlock), &pointLightBlock);
+		glUniform1i(uniforms["useTextures_pl"], useTextures);
 	#pragma region Draw call for rendering normal sponza
 
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
@@ -840,6 +857,7 @@ void MyView::windowViewRender(tygra::Window * window)
 		glBindBuffer(GL_UNIFORM_BUFFER, spotLightBlockUBO);
 		spotLightDataBlock.cameraPosition = (const glm::vec3&)scene_->getCamera().getPosition();
 		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(SpotLightDataBlock), &spotLightDataBlock);
+		glUniform1i(uniforms["useTextures_sl"], useTextures);
 	#pragma region Draw call for rendering normal sponza
 		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
 		glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, meshes_.size(), 0);
@@ -847,16 +865,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	#pragma endregion
 
 
-		glUseProgram(directionalLightShaderProgram);
-		glUniformMatrix4fv(uniforms["projection_view_dl"], 1, GL_FALSE, glm::value_ptr(projection_view));
-		glBindBuffer(GL_UNIFORM_BUFFER, directionalLightBlockUBO);
-		directionalLightDataBlock.cameraPosition = (const glm::vec3&)scene_->getCamera().getPosition();
-		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(DirectionalLightDataBlock), &directionalLightDataBlock);
-	#pragma region Draw call for rendering normal sponza
-		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
-		glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, meshes_.size(), 0);
-		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
-	#pragma endregion
+	
 
 
 

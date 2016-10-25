@@ -2,7 +2,7 @@
 #extension GL_EXT_texture_array : enable
 
 
-layout (std140, binding=0) uniform DataBlock {
+layout (std140) uniform DataBlock {
 	vec3 camera_position;
 	vec3 global_ambient_light;
 };
@@ -26,17 +26,19 @@ out vec4 fragment_colour;
 
 void main(void)
 {
-	vec3 final_colour = global_ambient_light * vert_diffuse_colour;
+	vec3 final_colour = global_ambient_light;
 	
-	if(useTextures)
+	if(useTextures && vert_diffuse_texture_ID < 27)
 	{
 		#ifdef GL_EXT_texture_array
-		if(vert_diffuse_texture_ID < 27)
 			final_colour *= texture2DArray(textureArray, vec3(text_coord, vert_diffuse_texture_ID)).rgb;
 		#else
-		if(vert_diffuse_texture_ID < 27)
 			final_colour *= texture(textureArray, vec3(text_coord, vert_diffuse_texture_ID)).xyz;
 		#endif
+	}
+	else
+	{
+		final_colour *= vert_diffuse_colour;
 	}
 	fragment_colour = vec4(final_colour, 1.0);
 }

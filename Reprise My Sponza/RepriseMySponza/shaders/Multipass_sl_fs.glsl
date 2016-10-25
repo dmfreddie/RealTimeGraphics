@@ -11,13 +11,15 @@ struct SpotLight
 	bool castShadow;
 };
 
-layout(std140, binding = 0) uniform DataBlock
+layout(std140) uniform DataBlock
 {
 	SpotLight spotLights[15];
 	vec3 camera_position;
 	float maxSpotLights;
 };
 
+layout (location=1) uniform sampler2DArray textureArray;
+uniform bool useTextures;
 
 in vec3 vertexPos;
 in vec3 vertexNormal;
@@ -38,6 +40,18 @@ vec3 SpotLightCalc(vec3 colour);
 void main(void)
 {
 	vec3 final_colour = SpotLightCalc(vec3(0,0,0));
+	if(useTextures && vert_diffuse_texture_ID < 27)
+	{
+		#ifdef GL_EXT_texture_array
+			final_colour *= texture2DArray(textureArray, vec3(text_coord, vert_diffuse_texture_ID)).rgb;
+		#else
+			final_colour *= texture(textureArray, vec3(text_coord, vert_diffuse_texture_ID)).xyz;
+		#endif
+	}
+	else
+	{
+		final_colour *= vert_diffuse_colour;
+	}
 	fragment_colour = vec4(final_colour, 1.0);
 }
 
@@ -85,7 +99,7 @@ vec3 DiffuseLight(vec3 lightPosition, vec3 lightIntensity, float attenuation)
 	if (vert_is_vertex_shiney > 0)
 		return  diffuse_intensity + SpecularLight(L, diffuse_intensity);
 	else
-		return  lightIntensity * diffuse_intensity;
+		return  diffuse_intensity;
 }
 
 vec3 SpotLightCalc(vec3 colour)
@@ -104,7 +118,7 @@ vec3 SpotLightCalc(vec3 colour)
 		// Compute height attenuation based on distance from earlier.
 		//float attenuation = smoothstep(spot.range, 0.0f, length(spot.position - vertexPos));
 
-		vec3 diffuse_intensity = DiffuseLight(spot.position, spot.intensity, attenuation) / 1.5;
+		vec3 diffuse_intensity = DiffuseLight(spot.position, spot.intensity, attenuation);
 				
 
 		colour += (diffuse_intensity * spotEffect);

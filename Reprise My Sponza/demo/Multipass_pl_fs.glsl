@@ -9,11 +9,15 @@ struct PointLight
 	float padding;
 };
 
-layout(std140, binding = 0) uniform DataBlock{
+layout(std140) uniform DataBlock{
 	PointLight pointLights[22];
 	vec3 camera_position;
 	float maxPointLights;
 };
+
+
+layout (location=1) uniform sampler2DArray textureArray;
+uniform bool useTextures;
 
 in vec3 vertexPos;
 in vec3 vertexNormal;
@@ -34,6 +38,20 @@ vec3 PointLightCalc(vec3 colour);
 void main(void)
 {
 	vec3 final_colour = PointLightCalc(vec3(0,0,0));
+
+	if(useTextures && vert_diffuse_texture_ID < 27)
+	{
+		#ifdef GL_EXT_texture_array
+			final_colour *= texture2DArray(textureArray, vec3(text_coord, vert_diffuse_texture_ID)).rgb;
+		#else
+			final_colour *= texture(textureArray, vec3(text_coord, vert_diffuse_texture_ID)).xyz;
+		#endif
+	}
+	else
+	{
+		final_colour *= vert_diffuse_colour;
+	}
+
 	fragment_colour = vec4(final_colour, 1.0);
 }
 
@@ -81,7 +99,7 @@ vec3 DiffuseLight(vec3 lightPosition, vec3 lightIntensity, float attenuation)
 	if (vert_is_vertex_shiney > 0)
 		return  diffuse_intensity + SpecularLight(L, diffuse_intensity);
 	else
-		return  lightIntensity * diffuse_intensity;
+		return  diffuse_intensity;
 }
 /*
 Calculate the colour value for the light and add it to the total light for the pixel
