@@ -171,7 +171,7 @@ void MyView::Getuniforms()
 	uniforms["useTextures"] = glGetUniformLocation(shaderProgram, "useTextures");
 	glUseProgram(pointLightShaderProgram);
 	uniforms["projection_view_pl"] = glGetUniformLocation(pointLightShaderProgram, "projection_view");
-	uniforms["useTextures_pl"] = glGetUniformLocation(spotLightShaderProgram, "useTextures");
+	uniforms["useTextures_pl"] = glGetUniformLocation(pointLightShaderProgram, "useTextures");
 	glUseProgram(spotLightShaderProgram);
 	uniforms["projection_view_sl"] = glGetUniformLocation(spotLightShaderProgram, "projection_view");
 	uniforms["useTextures_sl"] = glGetUniformLocation(spotLightShaderProgram, "useTextures");
@@ -660,12 +660,18 @@ void MyView::windowViewDidStop(tygra::Window * window)
 {
 	glDeleteProgram(shaderProgram);
 	glDeleteProgram(skybox_shaderProgram);
+	glDeleteProgram(pointLightShaderProgram);
+	glDeleteProgram(spotLightShaderProgram);
+	glDeleteProgram(directionalLightShaderProgram);
 	delete skybox;
 	glDeleteBuffers(1, &vertex_vbo);
 	glDeleteBuffers(1, &element_vbo);
 	glDeleteBuffers(1, &instance_vbo);
 	glDeleteBuffers(1, &material_vbo);
 	glDeleteBuffers(1, &ambientLightUBO);
+	glDeleteBuffers(1, &pointLightBlockUBO);
+	glDeleteBuffers(1, &spotLightBlockUBO);
+	glDeleteBuffers(1, &directionalLightBlockUBO);
 	glDeleteBuffers(1, &commandBuffer);
 	glDeleteVertexArrays(1, &vao);
 }

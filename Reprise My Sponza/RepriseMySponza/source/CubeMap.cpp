@@ -66,7 +66,8 @@ unsigned int CubeMap::LoadCubeMap(std::vector<const char*>& faces)
 			std::cerr << err << std::endl;
 	}
 	glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+
 	glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 	return texureID;
 }

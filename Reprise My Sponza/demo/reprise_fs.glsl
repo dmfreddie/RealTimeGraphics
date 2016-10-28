@@ -72,10 +72,10 @@ void main(void)
 	if(useTextures)
 	{
 		#ifdef GL_EXT_texture_array
-		if(vert_diffuse_texture_ID < 27)
+		if(vert_diffuse_texture_ID < 26)
 			final_colour *= texture2DArray(textureArray, vec3(text_coord, vert_diffuse_texture_ID)).rgb;
 		#else
-		if(vert_diffuse_texture_ID < 27)
+		if(vert_diffuse_texture_ID < 26)
 			final_colour *= texture(textureArray, vec3(text_coord, vert_diffuse_texture_ID)).xyz;
 		#endif
 	}
