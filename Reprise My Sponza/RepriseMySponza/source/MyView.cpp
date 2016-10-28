@@ -160,7 +160,7 @@ void MyView::CompileShaders()
 
 void MyView::Getuniforms()
 {
-#pragma region
+#pragma region Get the uniform locations
 	/*
 	Get the uniform locations of the uniform variables in the shader for each program where the varibale needs to be placed and bind it to a GLuint
 	inside the unordered map. An unordered map was used because every time a new unifrom Gluint is added it doesn't need to re-order the map. This is
@@ -177,7 +177,7 @@ void MyView::Getuniforms()
 	uniforms["useTextures_sl"] = glGetUniformLocation(spotLightShaderProgram, "useTextures");
 	glUseProgram(directionalLightShaderProgram);
 	uniforms["projection_view_dl"] = glGetUniformLocation(directionalLightShaderProgram, "projection_view");
-#pragma endregion // Get the uniform locations
+#pragma endregion 
 }
 
 void MyView::
@@ -304,39 +304,11 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	diffuseTextureNames.push_back("content:///sponza_roof_diff.png");
 	diffuseTextureNames.push_back("content:///sponza_thorn_diff.png");
 
-	std::vector<std::string> specularTextureNames;
-	specularTextureNames.push_back("content:///SpecularMaps/vase_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/Hook_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/lion_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/vase_round_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/background_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/flagPole_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/spnza_bricks_a_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/sponza_floor_a_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/sponza_fabric_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/sponza_roof_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/sponza_flagpole_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/spnza_bricks_a_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/spnza_bricks_a_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/chain_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/vase_round_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/sponza_fabric_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/sponza_roof_spec.png");
-	specularTextureNames.push_back("content:///SpecularMaps/sponza_thorn_spec.png");
+	
 
 	LoadTextureArray(diffuseTextureNames, shaderProgram, diffuse_texture_array_handle, "textureArray");
 	LoadTextureArray(diffuseTextureNames, spotLightShaderProgram, sl_diffuse_texture_array_handle, "textureArray");
 	LoadTextureArray(diffuseTextureNames, pointLightShaderProgram, pl_diffuse_texture_array_handle, "textureArray");
-	//LoadTextureArray(specularTextureNames, shaderProgram, specular_texture_array_handle, "specularTextureArray");
 
 
 	// SKYBOX
@@ -529,7 +501,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	if (err != GL_NO_ERROR)
 		std::cerr << err << std::endl;
 
-	
+#pragma region Setting Up Buffer
 
 	glGenVertexArrays(1, &vao);
 	glBindVertexArray(vao);
@@ -565,10 +537,8 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	}
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-
+#pragma endregion 
 	
-
-
 	err = glGetError();
 	if (err != GL_NO_ERROR)
 		std::cerr << err << std::endl;
@@ -876,14 +846,4 @@ void MyView::windowViewRender(tygra::Window * window)
 
 
 #pragma endregion 
-//
-//#pragma region Draw call for rendering normal sponza
-//
-//	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
-//	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, meshes_.size(), 0);
-//	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
-//
-//#pragma endregion 
-
-
 }

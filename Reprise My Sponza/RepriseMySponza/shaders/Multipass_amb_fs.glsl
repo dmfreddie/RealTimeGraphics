@@ -28,7 +28,7 @@ void main(void)
 {
 	vec3 final_colour = global_ambient_light;
 	
-	if(useTextures && vert_diffuse_texture_ID < 26)
+	if(useTextures && vert_diffuse_texture_ID <= 27)
 	{
 		#ifdef GL_EXT_texture_array
 			final_colour *= texture2DArray(textureArray, vec3(text_coord, vert_diffuse_texture_ID)).rgb;

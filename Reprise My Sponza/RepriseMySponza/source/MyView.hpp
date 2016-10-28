@@ -153,7 +153,7 @@ private:
 	std::unordered_map<std::string, GLuint> textures;
 	std::unordered_map<std::string, GLuint> uniforms;
 	std::vector<glm::mat4> matrices;
-	//DataBlock dataBlock;
+
 
 	PointLightDataBlock pointLightBlock;
 	SpotLightDataBlock spotLightDataBlock;
@@ -179,8 +179,7 @@ private:
 	GLuint diffuse_texture_array_handle;
 	GLuint sl_diffuse_texture_array_handle;
 	GLuint pl_diffuse_texture_array_handle;
-	GLuint specular_texture_array_handle;
-	//GLuint dataBlockUBO;
+
 	GLuint ambientLightUBO;
 	GLuint pointLightBlockUBO;
 	GLuint spotLightBlockUBO;
