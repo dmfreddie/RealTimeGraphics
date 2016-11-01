@@ -18,7 +18,7 @@ void main(void)
 
 	vec3 colour = DirLightCalc(N);
 
-	reflected_light = colour; // 0.5 + 0.5 * N;
+	reflected_light = colour * 4; // 0.5 + 0.5 * N;
 }
 
 vec3 DirLightCalc(vec3 normal)

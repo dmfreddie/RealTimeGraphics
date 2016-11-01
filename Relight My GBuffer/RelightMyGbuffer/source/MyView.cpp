@@ -229,7 +229,7 @@ void MyView::windowViewDidReset(tygra::Window * window,
     std::vector<tcf::ImagePtr> gbuffer_images;
     try {
         tcf::ReaderPtr tcfReader = tcf::createReaderPtr();
-        tcfReader->openFile("sponza_gbuffer.tcf");
+        tcfReader->openFile("sponza_gbuffer_ati.tcf");
         while (tcfReader->hasChunk()) {
             tcfReader->openChunk();
             if (tcf::chunkIsImage(tcfReader.get())) {
@@ -258,7 +258,6 @@ void MyView::windowViewDidReset(tygra::Window * window,
      * Tutorial: This is where you'll recreate texture and renderbuffer objects
      *           and attach them to framebuffer objects.
      */
-	GLenum pixel_formats[] = { 0, GL_RED, GL_RG, GL_RGB, GL_RGBA };
 	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_position_tex_);
 	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGB32F, width, height, 0,
 		GL_RGB,
@@ -293,6 +292,14 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_normal_tex_);
 	glUniform1i(glGetUniformLocation(global_light_prog_, "sampler_world_normal"), 1);
+
+	glUseProgram(point_light_prog_);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_position_tex_);
+	glUniform1i(glGetUniformLocation(point_light_prog_, "sampler_world_position"), 0);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_normal_tex_);
+	glUniform1i(glGetUniformLocation(point_light_prog_, "sampler_world_normal"), 1);
 
     GLenum framebuffer_status = 0;
     glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
@@ -382,34 +389,38 @@ void MyView::windowViewRender(tygra::Window * window)
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 	glBindVertexArray(0);
 
-	glDisable(GL_DEPTH_TEST);
-	glUseProgram(point_light_prog_);
 
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_ONE, GL_ONE);
-	glBlendEquation(GL_FUNC_ADD);
-	glDepthFunc(GL_EQUAL);
-	glDepthMask(GL_FALSE);
-
-	glUniformMatrix4fv(glGetUniformLocation(point_light_prog_, "projection_view"), 1, GL_FALSE, glm::value_ptr(projection_view));
-
-	for (int i = 0; i < point_light_count; ++i)
 	{
-		glUniform3fv(glGetUniformLocation(point_light_prog_, "point_light_position"), 1, glm::value_ptr(point_light_position[i]));
+		//glDisable(GL_DEPTH_TEST);
+		glUseProgram(point_light_prog_);
 
-		glUniform1f(glGetUniformLocation(point_light_prog_, "point_light_range"), point_light_range[i]);
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_ONE, GL_ONE);
+		glBlendEquation(GL_FUNC_ADD);
+		glDepthFunc(GL_EQUAL);
+		glDepthMask(GL_FALSE);
 
-		glm::mat4 model_matrix = glm::mat4(0);
-		model_matrix = glm::translate(model_matrix, point_light_position[i]);
-		glUniformMatrix4fv(glGetUniformLocation(point_light_prog_, "model_matrix"), 1, GL_FALSE, glm::value_ptr(model_matrix));
+		glUniformMatrix4fv(glGetUniformLocation(point_light_prog_, "projection_view"), 1, GL_FALSE, glm::value_ptr(projection_view));
 
-		glBindVertexArray(light_sphere_mesh_.vao);
-		glDrawElements(GL_TRIANGLE_FAN, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
+		for (int i = 0; i < point_light_count; ++i)
+		{
+			glUniform3fv(glGetUniformLocation(point_light_prog_, "point_light_position"), 1, glm::value_ptr(point_light_position[i]));
+
+			glUniform1f(glGetUniformLocation(point_light_prog_, "point_light_range"), point_light_range[i]);
+
+			glm::mat4 model_matrix = glm::mat4(1);
+			//model_matrix = glm::scale(model_matrix, glm::vec3(point_light_range[i]));
+			model_matrix = glm::translate(model_matrix, point_light_position[i]);
+			glUniformMatrix4fv(glGetUniformLocation(point_light_prog_, "model_matrix"), 1, GL_FALSE, glm::value_ptr(model_matrix));
+
+			glBindVertexArray(light_sphere_mesh_.vao);
+			glDrawArrays(GL_TRIANGLE_FAN, 0, light_sphere_mesh_.element_count);
+			//glDrawElements(GL_TRIANGLE_FAN, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
+		}
+
+		//glEnable(GL_DEPTH_TEST);
+		glDisable(GL_BLEND);
 	}
-
-	glEnable(GL_DEPTH_TEST);
-	glDisable(GL_BLEND);
-
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, lbuffer_fbo_);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 	glBlitFramebuffer(0, 0, viewport_size[2], viewport_size[3], 0, 0, viewport_size[2], viewport_size[3], GL_COLOR_BUFFER_BIT, GL_NEAREST);
