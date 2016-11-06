@@ -5,7 +5,7 @@ uniform sampler2DRect sampler_world_normal;
 
 uniform vec3 point_light_position;
 uniform float point_light_range;
-uniform vec3 point_light_intensity;
+uniform vec3 point_light_intensity = vec3(1.0, 0.0, 0.0);
 
 out vec3 reflected_light;
 

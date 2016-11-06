@@ -229,7 +229,7 @@ void MyView::windowViewDidReset(tygra::Window * window,
     std::vector<tcf::ImagePtr> gbuffer_images;
     try {
         tcf::ReaderPtr tcfReader = tcf::createReaderPtr();
-        tcfReader->openFile("sponza_gbuffer_ati.tcf");
+        tcfReader->openFile("sponza_gbuffer.tcf");
         while (tcfReader->hasChunk()) {
             tcfReader->openChunk();
             if (tcf::chunkIsImage(tcfReader.get())) {
@@ -395,9 +395,10 @@ void MyView::windowViewRender(tygra::Window * window)
 		glUseProgram(point_light_prog_);
 
 		glEnable(GL_BLEND);
+		glDisable(GL_STENCIL_TEST);
 		glBlendFunc(GL_ONE, GL_ONE);
 		glBlendEquation(GL_FUNC_ADD);
-		glDepthFunc(GL_EQUAL);
+		glDepthFunc(GL_LEQUAL);
 		glDepthMask(GL_FALSE);
 
 		glUniformMatrix4fv(glGetUniformLocation(point_light_prog_, "projection_view"), 1, GL_FALSE, glm::value_ptr(projection_view));
@@ -409,13 +410,13 @@ void MyView::windowViewRender(tygra::Window * window)
 			glUniform1f(glGetUniformLocation(point_light_prog_, "point_light_range"), point_light_range[i]);
 
 			glm::mat4 model_matrix = glm::mat4(1);
-			//model_matrix = glm::scale(model_matrix, glm::vec3(point_light_range[i]));
+			model_matrix = glm::scale(model_matrix, glm::vec3(point_light_range[i]));
 			model_matrix = glm::translate(model_matrix, point_light_position[i]);
 			glUniformMatrix4fv(glGetUniformLocation(point_light_prog_, "model_matrix"), 1, GL_FALSE, glm::value_ptr(model_matrix));
 
 			glBindVertexArray(light_sphere_mesh_.vao);
-			glDrawArrays(GL_TRIANGLE_FAN, 0, light_sphere_mesh_.element_count);
-			//glDrawElements(GL_TRIANGLE_FAN, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
+			//glDrawArrays(GL_TRIANGLE_FAN, 0, light_sphere_mesh_.element_count);
+			glDrawElements(GL_TRIANGLE_FAN, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
 		}
 
 		//glEnable(GL_DEPTH_TEST);
