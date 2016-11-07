@@ -7,6 +7,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <iostream>
 #include <vector>
+#include "Skybox.h"
 
 MyView::MyView()
 {
@@ -188,8 +189,58 @@ void MyView::windowViewWillStart(tygra::Window * window)
 			glGetProgramInfoLog(point_light_prog_, string_length, NULL, log);
 			std::cerr << log << std::endl;
 		}
+		
 	}
+	{
+		GLint compile_status = 0;
 
+		GLuint vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+		std::string vertex_shader_string
+			= tygra::createStringFromFile("resource:///SkyboxVertexShader.glsl");
+		const char *vertex_shader_code = vertex_shader_string.c_str();
+		glShaderSource(vertex_shader, 1,
+			(const GLchar **)&vertex_shader_code, NULL);
+		glCompileShader(vertex_shader);
+		glGetShaderiv(vertex_shader, GL_COMPILE_STATUS, &compile_status);
+		if (compile_status != GL_TRUE) {
+			const int string_length = 1024;
+			GLchar log[string_length] = "";
+			glGetShaderInfoLog(vertex_shader, string_length, NULL, log);
+			std::cerr << log << std::endl;
+		}
+
+		GLuint fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+		std::string fragment_shader_string =
+			tygra::createStringFromFile("resource:///SkyboxFragmentShader.glsl");
+		const char *fragment_shader_code = fragment_shader_string.c_str();
+		glShaderSource(fragment_shader, 1,
+			(const GLchar **)&fragment_shader_code, NULL);
+		glCompileShader(fragment_shader);
+		glGetShaderiv(fragment_shader, GL_COMPILE_STATUS, &compile_status);
+		if (compile_status != GL_TRUE) {
+			const int string_length = 1024;
+			GLchar log[string_length] = "";
+			glGetShaderInfoLog(fragment_shader, string_length, NULL, log);
+			std::cerr << log << std::endl;
+		}
+		skybox_shaderProgram = glCreateProgram();
+		glAttachShader(skybox_shaderProgram, vertex_shader);
+		glBindAttribLocation(skybox_shaderProgram, 0, "vertex_position");
+		glDeleteShader(vertex_shader);
+		glAttachShader(skybox_shaderProgram, fragment_shader);
+		glBindFragDataLocation(point_light_prog_, 0, "reflected_light");
+		glDeleteShader(fragment_shader);
+		glLinkProgram(skybox_shaderProgram);
+
+		GLint link_status = 0;
+		glGetProgramiv(skybox_shaderProgram, GL_LINK_STATUS, &link_status);
+		if (link_status != GL_TRUE) {
+			const int string_length = 1024;
+			GLchar log[string_length] = "";
+			glGetProgramInfoLog(skybox_shaderProgram, string_length, NULL, log);
+			std::cerr << log << std::endl;
+		}
+	}
     /*
      * Tutorial: All of the framebuffers, renderbuffers and texture objects
      *           that you'll need for this tutorial are gen'd here but not
@@ -212,6 +263,17 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_TRUE);
+
+
+	skybox = new Skybox(
+		"content:///Skybox/SunSetRight2048.png",
+		"content:///Skybox/SunSetLeft2048.png",
+		"content:///Skybox/SunSetFront2048.png",
+		"content:///Skybox/SunSetBack2048.png",
+		"content:///Skybox/SunSetUp2048.png",
+		"content:///Skybox/SunSetDown2048.png",
+		skybox_shaderProgram,
+		"skybox");
 }
 
 void MyView::windowViewDidReset(tygra::Window * window,
@@ -358,8 +420,11 @@ void MyView::windowViewRender(tygra::Window * window)
                                        camera_position + camera_direction,
                                        glm::vec3(0, 1, 0));
 	glm::mat4 projection_view = projection_xform * view_xform;
-    const glm::vec3 global_light_direction
-        = glm::normalize(glm::vec3(-3.f, -2.f, 1.f));
+	const glm::vec3 global_light_direction[2]
+		= {
+		glm::normalize(glm::vec3(-3.f, -2.f, 1.f)),
+		glm::normalize(glm::vec3(-1.f, -5.f, 1.f))
+	};
     const unsigned int point_light_count = 3;
     const glm::vec3 point_light_position[3] =
     {
@@ -368,7 +433,7 @@ void MyView::windowViewRender(tygra::Window * window)
         glm::vec3(80, 20, 0)
     };
     const float point_light_range[3] = { 40, 40, 40 };
-
+	const glm::vec3 ambient_light = glm::vec3(0.1, 0.1, 0.1);
     /*
      * Tutorial: Add your drawing code here as directed in the worksheet.
      */
@@ -378,7 +443,9 @@ void MyView::windowViewRender(tygra::Window * window)
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	glUseProgram(global_light_prog_);
-	glUniform3fv(glGetUniformLocation(global_light_prog_, "light_direction"), 1, glm::value_ptr(global_light_direction));
+	glUniform3fv(glGetUniformLocation(global_light_prog_, "light_direction[0]"), 1, glm::value_ptr(global_light_direction[0]));
+	glUniform3fv(glGetUniformLocation(global_light_prog_, "light_direction[1]"), 1, glm::value_ptr(global_light_direction[1]));
+	glUniform3fv(glGetUniformLocation(global_light_prog_, "ambient_light"), 1, glm::value_ptr(ambient_light));
 	glBindVertexArray(light_quad_mesh_.vao);
 
 	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
@@ -391,15 +458,15 @@ void MyView::windowViewRender(tygra::Window * window)
 
 
 	{
-		//glDisable(GL_DEPTH_TEST);
 		glUseProgram(point_light_prog_);
 
 		glEnable(GL_BLEND);
-		glDisable(GL_STENCIL_TEST);
 		glBlendFunc(GL_ONE, GL_ONE);
 		glBlendEquation(GL_FUNC_ADD);
 		glDepthFunc(GL_LEQUAL);
 		glDepthMask(GL_FALSE);
+		glCullFace(GL_FRONT);
+		glEnable(GL_DEPTH_TEST);
 
 		glUniformMatrix4fv(glGetUniformLocation(point_light_prog_, "projection_view"), 1, GL_FALSE, glm::value_ptr(projection_view));
 
@@ -410,18 +477,49 @@ void MyView::windowViewRender(tygra::Window * window)
 			glUniform1f(glGetUniformLocation(point_light_prog_, "point_light_range"), point_light_range[i]);
 
 			glm::mat4 model_matrix = glm::mat4(1);
-			model_matrix = glm::scale(model_matrix, glm::vec3(point_light_range[i]));
 			model_matrix = glm::translate(model_matrix, point_light_position[i]);
+			model_matrix = glm::scale(model_matrix, glm::vec3(point_light_range[i]));
+			
 			glUniformMatrix4fv(glGetUniformLocation(point_light_prog_, "model_matrix"), 1, GL_FALSE, glm::value_ptr(model_matrix));
 
 			glBindVertexArray(light_sphere_mesh_.vao);
 			//glDrawArrays(GL_TRIANGLE_FAN, 0, light_sphere_mesh_.element_count);
-			glDrawElements(GL_TRIANGLE_FAN, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
+			glDrawElements(GL_TRIANGLES, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
 		}
-
-		//glEnable(GL_DEPTH_TEST);
-		glDisable(GL_BLEND);
+		glCullFace(GL_BACK);
+		glDisable(GL_BLEND); 
+		glDisable(GL_DEPTH_TEST);
+		glDepthMask(GL_TRUE);
 	}
+
+
+#pragma region Draw call for rendering the skybox
+
+
+	//glDepthMask(GL_FALSE);
+	//glDisable(GL_DEPTH_TEST);
+	glStencilFunc(GL_EQUAL, 0, 0xFF);
+	glStencilMask(0x00);
+	glDisable(GL_BLEND);
+	glUseProgram(skybox_shaderProgram);
+	glm::mat4 mvp = glm::mat4(glm::mat3(projection_view));
+	glUniformMatrix4fv(glGetUniformLocation(skybox_shaderProgram, "MVP"), 1, GL_FALSE, &mvp[0][0]);
+
+	glm::mat4 m = glm::mat4(1.0);
+	glUniformMatrix4fv(glGetUniformLocation(skybox_shaderProgram, "model"), 1, GL_FALSE, &m[0][0]);
+	glm::mat4 v = view_xform;
+	glUniformMatrix4fv(glGetUniformLocation(skybox_shaderProgram, "view"), 1, GL_FALSE, &v[0][0]);
+	glm::mat4 p = projection_xform;
+	glUniformMatrix4fv(glGetUniformLocation(skybox_shaderProgram, "projection"), 1, GL_FALSE, &p[0][0]);
+	skybox->Bind();
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, skybox->GetTextureID());
+	glDrawArrays(GL_TRIANGLES, 0, 36);
+	skybox->Unbind();
+	//glEnable(GL_DEPTH_TEST);
+	glDepthMask(GL_TRUE);
+#pragma endregion 
+
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, lbuffer_fbo_);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 	glBlitFramebuffer(0, 0, viewport_size[2], viewport_size[3], 0, 0, viewport_size[2], viewport_size[3], GL_COLOR_BUFFER_BIT, GL_NEAREST);

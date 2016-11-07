@@ -162,13 +162,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="source\Cubemap.h" />
     <ClInclude Include="source\MyController.hpp" />
     <ClInclude Include="source\MyView.hpp" />
+    <ClInclude Include="source\Skybox.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="source\CubeMap.cpp" />
     <ClCompile Include="source\main.cpp" />
     <ClCompile Include="source\MyController.cpp" />
     <ClCompile Include="source\MyView.cpp" />
+    <ClCompile Include="source\Skybox.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\global_light_fs.glsl" />

@@ -4,6 +4,8 @@
 #include <tgl/tgl.h>
 #include <glm/glm.hpp>
 
+class Skybox;
+
 class MyView : public tygra::WindowViewDelegate
 {
 public:
@@ -26,6 +28,7 @@ private:
 
     GLuint global_light_prog_{ 0 };
     GLuint point_light_prog_{ 0 };
+	GLuint skybox_shaderProgram{ 0 };
 
     struct Mesh
     {
@@ -50,4 +53,5 @@ private:
     *           You should not need to add further member variables.
     */
 
+	Skybox* skybox;
 };
