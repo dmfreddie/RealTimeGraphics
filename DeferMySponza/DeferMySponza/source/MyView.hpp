@@ -43,6 +43,52 @@ struct Material
 	int diffuseTextureID;
 };
 
+struct DirectionalLight
+{
+	glm::vec3 direction;
+	float padding1;
+	glm::vec3 intensity;
+	float padding2;
+};
+
+struct PointLight
+{
+	glm::vec3 position;
+	float range;
+	glm::vec3 intensity;
+	float padding;
+};
+
+struct DirectionalLightDataBlock
+{
+	DirectionalLight directionalLights[3];
+	glm::vec3 cameraPosition;
+	float maxDirectional;
+};
+
+struct AmbientLightBlock
+{
+	glm::vec3 cameraPosition;
+	glm::vec3 ambient_light;;
+};
+
+struct PointLightDataBlock
+{
+	PointLight pointLights[22];
+	glm::vec3 cameraPosition;
+	float maxPointLights;
+};
+
+struct DataBlock
+{
+	DirectionalLight directionalLights[3];
+	glm::vec3 globalAmbientLight;
+	float maxPointLights;
+	glm::vec3 cameraPosition;
+	float maxDirectionalLights;
+	float maxSpotlights;
+};
+
 class MyView : public tygra::WindowViewDelegate
 {
 public:
@@ -91,6 +137,7 @@ private:
 
 	Mesh light_quad_mesh_; // vertex array of vec2 position
 	Mesh light_sphere_mesh_; // element array into vec3 position
+	Mesh light_cone_mesh_; // element array into vec3 position
 
 	GLuint gbuffer_position_tex_{ 0 };
 	GLuint gbuffer_normal_tex_{ 0 };
@@ -102,6 +149,14 @@ private:
 #pragma endregion 
 
 #pragma  region Shaders
-	Shader *gbufferShadr, *ambientLightShader, *pointLightShader;
+	Shader *gbufferShadr, *ambientLightShader, *pointLightShader, *directionalLightShader;
 #pragma endregion 
+
+	DirectionalLightDataBlock directionalLightDataBlock;
+	AmbientLightBlock ambientLightBlock;
+	PointLightDataBlock pointLightBlock;
+
+	GLuint ambientLightUBO;
+	GLuint directionalLightBlockUBO;
+	GLuint pointLightBlockUBO;
 };

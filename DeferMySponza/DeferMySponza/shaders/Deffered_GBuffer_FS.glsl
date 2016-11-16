@@ -1,8 +1,9 @@
 #version 330
 
-layout (location = 0) out vec4 gbufferTexture0;
+layout (location = 2) out vec4 gbufferTexture0;
 layout (location = 1) out vec4 gbufferTexture1;
-layout (location = 2) out vec4 gbufferTexture2;
+layout (location = 0) out vec4 gbufferTexture2;
+
 
 in vec3 vertexPos;
 in vec3 vertexNormal;
@@ -17,5 +18,5 @@ void main(void)
 {
 	gbufferTexture0 = vec4(vertexPos, 0.0);
 	gbufferTexture1 = vec4(vertexNormal, 0.0);
-	gbufferTexture2 = vec4(text_coord, vert_diffuse_texture_ID, vert_is_vertex_shiney);
+	gbufferTexture2 = vec4(vert_diffuse_colour, vert_is_vertex_shiney);
 }

@@ -56,5 +56,17 @@
     <None Include="shaders\Deffered_GBuffer_VS.glsl">
       <Filter>Shader Files</Filter>
     </None>
+    <None Include="shaders\Deffered_Directional_FS.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="shaders\Deffered_Directional_VS.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="shaders\Deffered_Point_FS.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="shaders\Deffered_Point_VS.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
   </ItemGroup>
 </Project>
