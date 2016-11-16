@@ -38,17 +38,17 @@ unsigned int Shader::GetUniformLocation(const char* name)
 
 void Shader::SetUniformFloatValue(const char* name, float value)
 {
-	glUniform1f(m_uniforms[name], value);
+		glUniform1f(GetUniformLocation(name), value);
 }
 
 void Shader::SetUniformIntValue(const char* name, int value)
 {
-	glUniform1i(m_uniforms[name], value);
+		glUniform1i(GetUniformLocation(name), value);
 }
 
 void Shader::SetUniformMatrix4FValue(const char* name, glm::mat4 value)
 {
-	glUniformMatrix4fv(m_uniforms[name], 1, GL_FALSE, glm::value_ptr(value));
+		glUniformMatrix4fv(GetUniformLocation(name), 1, GL_FALSE, glm::value_ptr(value));
 }
 
 void Shader::CompileShader(std::string shaderFileName, GLenum shaderType, GLuint& shaderVariable)
@@ -90,4 +90,24 @@ void Shader::Bind()
 void Shader::Unbind()
 {
 	glUseProgram(0);
+}
+
+bool Shader::UniformExistsInMap(const char* name, bool addToMapIfExists)
+{
+	if (m_uniforms.find(name) == m_uniforms.end())
+	{
+		if (addToMapIfExists)
+		{
+			GetUniformLocation(name);
+			return true;
+		}
+		return false;
+	}
+	else
+		return true;
+}
+
+const unsigned int Shader::GetShaderID() const
+{
+	return m_shaderProgram;
 }

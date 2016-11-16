@@ -53,6 +53,7 @@ public:
 
     void setScene(const scene::Context * scene);
 
+	void Stop(tygra::Window* window);
 private:
 
     void windowViewWillStart(tygra::Window * window) override;

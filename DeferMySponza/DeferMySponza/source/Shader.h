@@ -18,9 +18,11 @@ public:
 
 	void Bind();
 	void Unbind();
+	const unsigned int GetShaderID() const;
 private:
 	void CompileShader(std::string shaderFileName, GLenum shaderType, GLuint& shaderVariable);
 	bool CheckLinkStatus(GLuint shaderProgram);
+	bool UniformExistsInMap(const char* name, bool addToMapIfExists = true);
 
 private:
 	unsigned int m_vertexShader = 0, m_fragmentShader = 0, m_shaderProgram = 0;

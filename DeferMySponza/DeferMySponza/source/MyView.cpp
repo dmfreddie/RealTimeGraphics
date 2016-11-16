@@ -23,6 +23,11 @@ void MyView::setScene(const scene::Context * scene)
     scene_ = scene;
 }
 
+void MyView::Stop(tygra::Window * window)
+{
+	this->windowViewDidStop(window);
+}
+
 void MyView::windowViewWillStart(tygra::Window * window)
 {
     assert(scene_ != nullptr);
@@ -310,6 +315,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glGenTextures(1, &gbuffer_position_tex_);
 	glGenTextures(1, &gbuffer_normal_tex_);
 	glGenTextures(1, &gbuffer_depth_tex_);
+	glGenTextures(1, &gbuffer_material_tex_);
 
 	glGenFramebuffers(1, &lbuffer_fbo_);
 	glGenRenderbuffers(1, &lbuffer_colour_rbo_);
@@ -337,7 +343,13 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glBindTexture(GL_TEXTURE_RECTANGLE, 0);
-	
+
+	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_material_tex_);
+	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGB32F, width, height, 0, GL_RGB, GL_FLOAT, nullptr);
+	glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glBindTexture(GL_TEXTURE_RECTANGLE, 0);
+
 	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_depth_tex_);
 	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_DEPTH24_STENCIL8, width, height, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, nullptr);
 	glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -347,10 +359,13 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	ambientLightShader->Bind();
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_position_tex_);
-	ambientLightShader->SetUniformIntValue("sampler_world_position", 0);
+	glUniform1i(glGetUniformLocation(ambientLightShader->GetShaderID(), "sampler_world_position"), 0);
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_normal_tex_);
-	ambientLightShader->SetUniformIntValue("sampler_world_normal", 1);
+	glUniform1i(glGetUniformLocation(ambientLightShader->GetShaderID(), "sampler_world_normal"), 1);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_material_tex_);
+	glUniform1i(glGetUniformLocation(ambientLightShader->GetShaderID(), "sampler_world_material"), 2);
 	ambientLightShader->Unbind();
 	// --------------------------
 
@@ -361,11 +376,12 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_RECTANGLE, gbuffer_depth_tex_, 0);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_RECTANGLE, gbuffer_position_tex_, 0);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_RECTANGLE, gbuffer_normal_tex_, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_RECTANGLE, gbuffer_material_tex_, 0);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, lbuffer_colour_rbo_);
-	GLuint attachments[2] = { GL_COLOR_ATTACHMENT0 , GL_COLOR_ATTACHMENT1};
+	GLuint attachments[3] = { GL_COLOR_ATTACHMENT0 , GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
 
 
-	glDrawBuffers(2, attachments);
+	glDrawBuffers(3, attachments);
 
 	framebuffer_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	if (framebuffer_status != GL_FRAMEBUFFER_COMPLETE) {
@@ -378,6 +394,16 @@ void MyView::windowViewDidStop(tygra::Window * window)
 {
 	delete gbufferShadr;
 	delete ambientLightShader;
+	
+	GLuint vaos[3] = { vao , light_quad_mesh_.vao, light_sphere_mesh_.vao };
+	GLuint textures[4] = { gbuffer_position_tex_, gbuffer_normal_tex_, gbuffer_material_tex_, gbuffer_depth_tex_ }; 
+	GLuint buffer[5] = { vertex_vbo, element_vbo, instance_vbo, material_vbo,commandBuffer };
+
+	glDeleteVertexArrays(3, vaos);
+	glDeleteFramebuffers(1, &lbuffer_fbo_);
+	glDeleteRenderbuffers(1, &lbuffer_colour_rbo_);
+	glDeleteTextures(4, textures);
+	glDeleteBuffers(5, buffer);
 }
 
 void MyView::windowViewRender(tygra::Window * window)
@@ -390,13 +416,13 @@ void MyView::windowViewRender(tygra::Window * window)
 	glGetIntegerv(GL_VIEWPORT, viewport_size);
 	const float aspect_ratio = viewport_size[2] / (float)viewport_size[3];
 
-	const glm::vec3 camera_position = glm::vec3(96.f, 22.f, -8.f);
-	const glm::vec3 camera_direction = glm::vec3(-0.98f, 0.18f, 0.11f);
-	glm::mat4 projection_xform = glm::perspective(75.f, aspect_ratio, 1.f, 1000.f);
+	const glm::vec3 camera_position = (const glm::vec3&)scene_->getCamera().getPosition();
+	const glm::vec3 camera_direction = (const glm::vec3&)scene_->getCamera().getDirection();
+	glm::mat4 projection_xform = glm::perspective(glm::radians(scene_->getCamera().getVerticalFieldOfViewInDegrees()), aspect_ratio, 1.f, 1000.f);
 	glm::mat4 view_xform = glm::lookAt(camera_position, camera_position + camera_direction, glm::vec3(0, 1, 0));
 	glm::mat4 projection_view = projection_xform * view_xform;
 
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, lbuffer_fbo_);
+	glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	
 	glBindVertexArray(vao);
