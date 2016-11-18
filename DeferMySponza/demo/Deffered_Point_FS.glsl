@@ -13,15 +13,8 @@ out vec3 reflected_light;
 vec3 DiffuseLight(vec3 lightPosition, vec3 lightIntensity, float attenuation);
 vec3 PointLightCalc();
 
-vec3 texel_P = vec3(0,0,0);
-vec3 N = vec3(0,0,0);
-
 void main(void)
 {
-	texel_P = texelFetch(sampler_world_position, ivec2(gl_FragCoord.xy)).rgb;
-	vec3 texel_N = texelFetch(sampler_world_normal, ivec2(gl_FragCoord.xy)).rgb;
-	N = normalize(texel_N);
-
 	vec3 colour = PointLightCalc();
 
 	reflected_light = colour; // 0.5 + 0.5 * N;
@@ -36,13 +29,18 @@ Also call the specular for that light and add it to the diffuse value
 */
 vec3 DiffuseLight(vec3 lightPosition, vec3 lightIntensity, float attenuation)
 {
-	vec3 L = normalize(lightPosition - texel_P);
-	float scaler = max(0, dot(L, normalize(N))) * attenuation;
+	vec3 texel_M = texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).rgb;
+	vec3 texel_N = texelFetch(sampler_world_normal, ivec2(gl_FragCoord.xy)).rgb;
+	vec3 vertexPos = texelFetch(sampler_world_position, ivec2(gl_FragCoord.xy)).rgb;
+	vec3 vertexNormal = normalize(texel_N);
+
+	vec3 L = normalize(lightPosition - vertexPos);
+	float scaler = max(0, dot(L, vertexNormal)) * attenuation;
 
 	if (scaler == 0)
 		return vec3(0, 0, 0);
 
-	vec3 diffuse_intensity = lightIntensity * scaler;
+	vec3 diffuse_intensity = lightIntensity * scaler * texel_M;
 
 
 	return  diffuse_intensity;
@@ -55,8 +53,8 @@ Calculate the colour value for the light and add it to the total light for the p
 */
 vec3 PointLightCalc()
 {
-	
-	float dist = distance(point_light_position, texel_P);
+	vec3 vertexPos = texelFetch(sampler_world_position, ivec2(gl_FragCoord.xy)).rgb;
+	float dist = distance(point_light_position, vertexPos);
 	float attenuation = 1 - smoothstep(0.0, point_light_range, dist);
 
 	

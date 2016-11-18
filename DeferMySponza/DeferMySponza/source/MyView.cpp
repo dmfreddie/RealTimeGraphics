@@ -421,6 +421,16 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glBindBufferBase(GL_UNIFORM_BUFFER, 1, directionalLightBlockUBO);
 	glUniformBlockBinding(directionalLightShader->GetShaderID(), glGetUniformBlockIndex(directionalLightShader->GetShaderID(), "DataBlock"), 1);
 	directionalLightShader->Unbind();
+
+
+	pointLightShader->Bind();
+	glGenBuffers(1, &pointLightBlockUBO);
+	glBindBuffer(GL_UNIFORM_BUFFER, pointLightBlockUBO);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(PointLightDataBlock), &pointLightBlock, GL_STREAM_DRAW);
+
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, pointLightBlockUBO);
+	glUniformBlockBinding(pointLightShader->GetShaderID(), glGetUniformBlockIndex(pointLightShader->GetShaderID(), "DataBlock"), 2);
+	pointLightShader->Unbind();
 #pragma endregion 
 }
 
@@ -581,17 +591,13 @@ void MyView::windowViewRender(tygra::Window * window)
 	glDisable(GL_DEPTH_TEST);
 	gbufferShadr->Unbind();
 
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_ONE, GL_ONE);
-	glBlendEquation(GL_FUNC_ADD);
-	glDepthFunc(GL_LEQUAL);
-	glDepthMask(GL_FALSE);
+	
 
 	glBindVertexArray(light_quad_mesh_.vao);
 	
-	ambientLightShader->Bind();
+	/*ambientLightShader->Bind();
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-	ambientLightShader->Unbind();
+	ambientLightShader->Unbind();*/
 
 	directionalLightShader->Bind();
 	glBindBuffer(GL_UNIFORM_BUFFER, directionalLightBlockUBO);
@@ -600,27 +606,38 @@ void MyView::windowViewRender(tygra::Window * window)
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 	directionalLightShader->Unbind();
 
-	glBindVertexArray(0);
-
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_ONE, GL_ONE);
+	glBlendEquation(GL_FUNC_ADD);
+	glDepthFunc(GL_LEQUAL);
+	glDepthMask(GL_FALSE);
+	
 
 	glBindVertexArray(light_sphere_mesh_.vao);
 
 	pointLightShader->Bind();
 	glUniformMatrix4fv(glGetUniformLocation(pointLightShader->GetShaderID(), "projection_view"), 1, GL_FALSE, glm::value_ptr(projection_view));
-	for (int i = 0; i < scene_->getAllPointLights().size(); ++i)
+	const auto& pointLights = scene_->getAllPointLights();
+	for (int i = 0; i < pointLights.size(); ++i)
 	{
-		glUniform3fv(glGetUniformLocation(pointLightShader->GetShaderID(), "point_light_position"), 1, glm::value_ptr((const glm::vec3&)scene_->getAllPointLights()[i].getPosition()));
-		glUniform1f(glGetUniformLocation(pointLightShader->GetShaderID(), "point_light_range"), scene_->getAllPointLights()[i].getRange());
-		glUniform3fv(glGetUniformLocation(pointLightShader->GetShaderID(), "point_light_intensity"), 1, glm::value_ptr((const glm::vec3&)scene_->getAllPointLights()[i].getIntensity()));
-
+		pointLightBlock.pointLights[i].position = (const glm::vec3&)pointLights[i].getPosition();
+		pointLightBlock.pointLights[i].range = pointLights[i].getRange();
+		pointLightBlock.pointLights[i].intensity = (const glm::vec3&)pointLights[i].getIntensity();
+		
 		glm::mat4 model_matrix = glm::mat4(1);
 		model_matrix = glm::translate(model_matrix, (const glm::vec3&)scene_->getAllPointLights()[i].getPosition());
 		model_matrix = glm::scale(model_matrix, glm::vec3(scene_->getAllPointLights()[i].getRange()));
+		pointLightBlock.pointLights[i].modelMatrix = model_matrix;
 
-		glUniformMatrix4fv(glGetUniformLocation(pointLightShader->GetShaderID(), "model_matrix"), 1, GL_FALSE, glm::value_ptr(model_matrix));
-
-		glDrawElements(GL_TRIANGLES, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
+		
 	}
+
+	glBindBuffer(GL_UNIFORM_BUFFER, pointLightBlockUBO);
+	pointLightBlock.cameraPosition = (const glm::vec3&)scene_->getCamera().getPosition();
+	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(PointLightDataBlock), &pointLightBlockUBO);
+
+	//glDrawElements(GL_TRIANGLES, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
+	glMultiDrawElements(GL_TRIANGLES, &light_sphere_mesh_.element_count, GL_UNSIGNED_INT, nullptr, pointLights.size());
 
 	pointLightShader->Unbind();
 	glBindVertexArray(0);

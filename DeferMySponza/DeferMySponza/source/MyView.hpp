@@ -57,6 +57,7 @@ struct PointLight
 	float range;
 	glm::vec3 intensity;
 	float padding;
+	glm::mat4 modelMatrix;
 };
 
 struct DirectionalLightDataBlock

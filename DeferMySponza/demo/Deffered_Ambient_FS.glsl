@@ -14,14 +14,14 @@ layout (location = 0) out vec3 reflected_light;
 
 void main(void)
 {
-	vec3 final_colour = global_ambient_light;
+	vec3 final_colour = vec3(0, 0, 0);
 
-	//vec3 texel_P = texelFetch(sampler_world_position, ivec2(gl_FragCoord.xy)).rgb;
-	//vec3 texel_N = texelFetch(sampler_world_normal, ivec2(gl_FragCoord.xy)).rgb;
+	////vec3 texel_P = texelFetch(sampler_world_position, ivec2(gl_FragCoord.xy)).rgb;
+	////vec3 texel_N = texelFetch(sampler_world_normal, ivec2(gl_FragCoord.xy)).rgb;
 	//vec3 texel_M = texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).rgb;
 	//vec3 N = normalize(texel_N);
 
-	final_colour *= texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).rgb;
+	//final_colour *= texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).rgb;
 
 	reflected_light = vec3(final_colour);
 }
