@@ -364,7 +364,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	//Create the light vector so there will be memory already reserved that can just be overwritten if values have been changed. This has been done on 
 	//start for effiences in the constant render loop function.
-	auto& pointLightsRef = scene_->getAllPointLights();
+	/*auto& pointLightsRef = scene_->getAllPointLights();
 	for (unsigned int i = 0; i < pointLightsRef.size(); ++i)
 	{
 		PointLight light;
@@ -374,7 +374,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		light.padding = 0.0f;
 		pointLightBlock.pointLights[i] = light;
 	}
-	pointLightBlock.maxPointLights = pointLightsRef.size();
+	pointLightBlock.maxPointLights = pointLightsRef.size();*/
 
 
 	auto& directionalLightRef = scene_->getAllDirectionalLights();
@@ -490,6 +490,17 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_material_tex_);
 	glUniform1i(glGetUniformLocation(directionalLightShader->GetShaderID(), "sampler_world_material"), 2);
 	directionalLightShader->Unbind();
+	pointLightShader->Bind();
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_position_tex_);
+	glUniform1i(glGetUniformLocation(pointLightShader->GetShaderID(), "sampler_world_position"), 0);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_normal_tex_);
+	glUniform1i(glGetUniformLocation(pointLightShader->GetShaderID(), "sampler_world_normal"), 1);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_material_tex_);
+	glUniform1i(glGetUniformLocation(pointLightShader->GetShaderID(), "sampler_world_material"), 2);
+	pointLightShader->Unbind();
 	// --------------------------
 
 	GLenum framebuffer_status = 0;
@@ -606,6 +617,8 @@ void MyView::windowViewRender(tygra::Window * window)
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 	directionalLightShader->Unbind();
 
+	glBindVertexArray(0);
+
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE);
 	glBlendEquation(GL_FUNC_ADD);
@@ -618,27 +631,29 @@ void MyView::windowViewRender(tygra::Window * window)
 	pointLightShader->Bind();
 	glUniformMatrix4fv(glGetUniformLocation(pointLightShader->GetShaderID(), "projection_view"), 1, GL_FALSE, glm::value_ptr(projection_view));
 	const auto& pointLights = scene_->getAllPointLights();
+	glBindBuffer(GL_UNIFORM_BUFFER, pointLightBlockUBO);
+	pointLightBlock.cameraPosition = (const glm::vec3&)scene_->getCamera().getPosition();
 	for (int i = 0; i < pointLights.size(); ++i)
 	{
-		pointLightBlock.pointLights[i].position = (const glm::vec3&)pointLights[i].getPosition();
-		pointLightBlock.pointLights[i].range = pointLights[i].getRange();
-		pointLightBlock.pointLights[i].intensity = (const glm::vec3&)pointLights[i].getIntensity();
+		pointLightBlock.pointLight.position = (const glm::vec3&)pointLights[i].getPosition();
+		pointLightBlock.pointLight.range = pointLights[i].getRange();
+		pointLightBlock.pointLight.intensity = (const glm::vec3&)pointLights[i].getIntensity();
 		
 		glm::mat4 model_matrix = glm::mat4(1);
 		model_matrix = glm::translate(model_matrix, (const glm::vec3&)scene_->getAllPointLights()[i].getPosition());
 		model_matrix = glm::scale(model_matrix, glm::vec3(scene_->getAllPointLights()[i].getRange()));
-		pointLightBlock.pointLights[i].modelMatrix = model_matrix;
 
 		
+		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(PointLightDataBlock), &pointLightBlockUBO);
+
+		glUniformMatrix4fv(glGetUniformLocation(pointLightShader->GetShaderID(), "model_matrix"), 1, GL_FALSE, glm::value_ptr(model_matrix));
+
+		glDrawElements(GL_TRIANGLES, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
+		//glMultiDrawElements(GL_TRIANGLES, &light_sphere_mesh_.element_count, GL_UNSIGNED_INT, nullptr, pointLights.size());
+
 	}
 
-	glBindBuffer(GL_UNIFORM_BUFFER, pointLightBlockUBO);
-	pointLightBlock.cameraPosition = (const glm::vec3&)scene_->getCamera().getPosition();
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(PointLightDataBlock), &pointLightBlockUBO);
-
-	//glDrawElements(GL_TRIANGLES, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
-	glMultiDrawElements(GL_TRIANGLES, &light_sphere_mesh_.element_count, GL_UNSIGNED_INT, nullptr, pointLights.size());
-
+	
 	pointLightShader->Unbind();
 	glBindVertexArray(0);
 	

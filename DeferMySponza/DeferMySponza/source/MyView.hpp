@@ -75,7 +75,7 @@ struct AmbientLightBlock
 
 struct PointLightDataBlock
 {
-	PointLight pointLights[22];
+	PointLight pointLight;
 	glm::vec3 cameraPosition;
 	float maxPointLights;
 };

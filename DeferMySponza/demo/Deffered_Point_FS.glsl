@@ -4,9 +4,19 @@ layout (location = 0) uniform sampler2DRect sampler_world_position;
 layout (location = 1) uniform sampler2DRect sampler_world_normal;
 layout (location = 2) uniform sampler2DRect sampler_world_material;
 
-uniform vec3 point_light_position;
-uniform float point_light_range;
-uniform vec3 point_light_intensity = vec3(1.0, 0.0, 0.0);
+struct PointLight
+{
+	vec3 position;
+	float range;
+	vec3 intensity;
+	float padding;
+};
+
+layout(std140) uniform DataBlock{
+	PointLight pointLight;
+	vec3 camera_position;
+	float maxPointLights;
+};
 
 out vec3 reflected_light;
 
@@ -54,11 +64,11 @@ Calculate the colour value for the light and add it to the total light for the p
 vec3 PointLightCalc()
 {
 	vec3 vertexPos = texelFetch(sampler_world_position, ivec2(gl_FragCoord.xy)).rgb;
-	float dist = distance(point_light_position, vertexPos);
-	float attenuation = 1 - smoothstep(0.0, point_light_range, dist);
+	float dist = distance(pointLight.position, vertexPos);
+	float attenuation = 1 - smoothstep(0.0, pointLight.range, dist);
 
 	
-	vec3 colour = DiffuseLight(point_light_position, point_light_intensity, attenuation);
+	vec3 colour = DiffuseLight(pointLight.position, pointLight.intensity, attenuation);
 	
 	
 	return colour;

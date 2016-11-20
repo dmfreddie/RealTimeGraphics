@@ -25,9 +25,6 @@ vec3 DirLightCalc(vec3 colour);
 
 void main(void)
 {
-	
-	
-
 	vec3 final_colour = DirLightCalc(vec3(0, 0, 0));
 	reflected_light = final_colour;
 }
