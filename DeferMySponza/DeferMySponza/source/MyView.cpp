@@ -103,7 +103,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		*           with a spot light source.
 		*/
 #pragma region Create cone mesh
-		/*tsl::IndexedMeshPtr coneMesh = tsl::createConePtr(1.0f, 1.0f, 12);
+		tsl::IndexedMeshPtr coneMesh = tsl::createConePtr(1.0f, 1.0f, 12);
 		coneMesh = tsl::cloneIndexedMeshAsTriangleListPtr(coneMesh.get());
 
 		light_cone_mesh_.element_count = coneMesh->indexCount();
@@ -132,7 +132,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
 			sizeof(glm::vec3), 0);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		glBindVertexArray(0);*/
+		glBindVertexArray(0);
 #pragma endregion 
 
 #pragma region Shaders
@@ -140,7 +140,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	ambientLightShader = new Shader("Deffered_Ambient_VS.glsl", "Deffered_Ambient_FS.glsl");
 	directionalLightShader = new Shader("Deffered_Directional_VS.glsl", "Deffered_Directional_FS.glsl");
 	pointLightShader = new Shader("Deffered_Point_VS.glsl", "Deffered_Point_FS.glsl");
-
+	spotlightShader = new Shader("Deffered_Spot_VS.glsl", "Deffered_Spot_FS.glsl");
 	gbufferShadr->Bind();
 	gbufferShadr->GetUniformLocation("projection_view");
 	gbufferShadr->Unbind();
@@ -385,10 +385,23 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		light.intensity = (const glm::vec3&) directionalLightRef[i].getIntensity();
 		light.padding1 = 0.0f;
 		light.padding2 = 0.0f;
-		//dataBlock.directionalLights[i] = light;
 		lightingData.directionalLight[i] = light;
 	}
-	//dataBlock.maxDirectionalLights = directionalLightRef.size();
+	lightingData.maxDirectionalLights = directionalLightRef.size();
+
+	auto& spotlightRef = scene_->getAllSpotLights();
+	for (unsigned int i = 0; i < spotlightRef.size(); ++i)
+	{
+		SpotLight light;
+		light.position = (const glm::vec3&) spotlightRef[i].getPosition();
+		light.direction = (const glm::vec3&) spotlightRef[i].getDirection();
+		light.intensity = (const glm::vec3&) spotlightRef[i].getIntensity();
+		light.range = spotlightRef[i].getRange();
+		light.coneAngle = spotlightRef[i].getConeAngleDegrees();
+		light.castShadow = spotlightRef[i].getCastShadow();
+
+		lightingData.spotLight[i] = light;
+	}
 	lightingData.maxDirectionalLights = directionalLightRef.size();
 
 	err = glGetError();
@@ -592,11 +605,18 @@ void MyView::windowViewRender(tygra::Window * window)
 		lightingData.directionalLight[i].direction = (const glm::vec3&)directionalLights[i].getDirection();
 		lightingData.directionalLight[i].intensity = (const glm::vec3&)directionalLights[i].getIntensity();
 	}
+
+	auto& spotlightRef = scene_->getAllSpotLights();
+	for (unsigned int i = 0; i < spotlightRef.size(); ++i)
+	{
+		lightingData.spotLight[i].position = (const glm::vec3&) spotlightRef[i].getPosition();
+		lightingData.spotLight[i].direction = (const glm::vec3&) spotlightRef[i].getDirection();
+	}
 	
 	lightingData.cameraPosition = (const glm::vec3&)scene_->getCamera().getPosition();
 	lightingData.maxPointLights = pointLights.size();
 	lightingData.maxDirectionalLights = directionalLights.size();
-	lightingData.maxSpotlights = 0.0f;
+	lightingData.maxSpotlights = spotlightRef.size();
 	glBindBuffer(GL_UNIFORM_BUFFER, lightDataUBO);
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(DataBlock), &lightingData, GL_STREAM_DRAW);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
@@ -658,6 +678,28 @@ void MyView::windowViewRender(tygra::Window * window)
 	}
 
 	
+	pointLightShader->Unbind();
+	glBindVertexArray(0);
+
+
+	glBindVertexArray(light_cone_mesh_.vao);
+
+	spotlightShader->Bind();
+	spotlightShader->SetUniformMatrix4FValue("projection_view", projection_view);
+
+	for (int i = 0; i < spotlightRef.size(); ++i)
+	{
+		glm::mat4 model_matrix = glm::mat4(1);
+		model_matrix = glm::translate(model_matrix, (const glm::vec3&)spotlightRef[i].getPosition());
+		model_matrix = glm::scale(model_matrix, glm::vec3(spotlightRef[i].getRange()));
+		//model_matrix = glm::rotate(model_matrix, glm::vec3(spotlightRef[i].getDirection()));
+
+		spotlightShader->SetUniformMatrix4FValue("model_matrix", model_matrix);
+		spotlightShader->SetUniformIntValue("currentSpotLight", i);
+		glDrawElements(GL_TRIANGLES, light_cone_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
+	}
+
+
 	pointLightShader->Unbind();
 	glBindVertexArray(0);
 	

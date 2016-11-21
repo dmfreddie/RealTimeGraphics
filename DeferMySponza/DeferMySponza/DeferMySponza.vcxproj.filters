@@ -68,5 +68,11 @@
     <None Include="shaders\Deffered_Point_VS.glsl">
       <Filter>Shader Files</Filter>
     </None>
+    <None Include="shaders\Deffered_Spot_VS.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
+    <None Include="shaders\Deffered_Spot_FS.glsl">
+      <Filter>Shader Files</Filter>
+    </None>
   </ItemGroup>
 </Project>

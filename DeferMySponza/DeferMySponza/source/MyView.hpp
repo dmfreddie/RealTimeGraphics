@@ -59,6 +59,16 @@ struct PointLight
 	float padding;
 };
 
+struct SpotLight
+{
+	glm::vec3 position;
+	float range;
+	glm::vec3 direction;
+	float coneAngle;
+	glm::vec3 intensity;
+	bool castShadow;
+};
+
 struct AmbientLightBlock
 {
 	glm::vec3 ambient_light;
@@ -71,6 +81,7 @@ struct DataBlock
 	PointLight pointLight[20];
 	AmbientLightBlock ambientLight;
 	DirectionalLight directionalLight[2];
+	SpotLight spotLight[5];
 	glm::vec3 cameraPosition;
 	float maxPointLights;	
 	float maxDirectionalLights;
@@ -137,7 +148,7 @@ private:
 #pragma endregion 
 
 #pragma  region Shaders
-	Shader *gbufferShadr, *ambientLightShader, *pointLightShader, *directionalLightShader;
+	Shader *gbufferShadr, *ambientLightShader, *pointLightShader, *directionalLightShader, *spotlightShader;
 #pragma endregion 
 
 	DataBlock lightingData;

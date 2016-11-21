@@ -29,11 +29,22 @@ struct AmbientLightBlock
 };
 
 
+struct SpotLight
+{
+	vec3 position;
+	float range;
+	vec3 direction;
+	float coneAngle;
+	vec3 intensity;
+	bool castShadow;
+};
+
 layout(std140) uniform DataBlock
 {
 	PointLight pointLight[20];
 	AmbientLightBlock ambientLight;
 	DirectionalLight directionalLight[2];
+	SpotLight spotLight[5];
 	vec3 cameraPosition;
 	float maxPointLights;	
 	float maxDirectionalLights;

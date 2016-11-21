@@ -335,6 +335,8 @@
     <None Include="shaders\Deffered_GBuffer_VS.glsl" />
     <None Include="shaders\Deffered_Point_FS.glsl" />
     <None Include="shaders\Deffered_Point_VS.glsl" />
+    <None Include="shaders\Deffered_Spot_FS.glsl" />
+    <None Include="shaders\Deffered_Spot_VS.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
