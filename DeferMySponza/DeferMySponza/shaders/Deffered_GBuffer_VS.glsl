@@ -24,7 +24,7 @@ void main(void)
 {
 	//Convert the noormals and positions into world space
 	vertexNormal = mat3(model_matrix) *  vertex_normal;
-	vertexPos = mat3(model_matrix) *  vertex_position;
+	vertexPos = mat3(model_matrix) * vertex_position;
 
 	vert_diffuse_colour = vertex_diffuse_colour;
 	vert_specular_colour = vertex_specular_colour;
