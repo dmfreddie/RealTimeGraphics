@@ -364,7 +364,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	//Create the light vector so there will be memory already reserved that can just be overwritten if values have been changed. This has been done on 
 	//start for effiences in the constant render loop function.
-	/*auto& pointLightsRef = scene_->getAllPointLights();
+	auto& pointLightsRef = scene_->getAllPointLights();
 	for (unsigned int i = 0; i < pointLightsRef.size(); ++i)
 	{
 		PointLight light;
@@ -372,9 +372,9 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		light.range = pointLightsRef[i].getRange();
 		light.intensity = (const glm::vec3&) pointLightsRef[i].getIntensity();
 		light.padding = 0.0f;
-		pointLightBlock.pointLights[i] = light;
+		lightingData.pointLight[i] = light;
 	}
-	pointLightBlock.maxPointLights = pointLightsRef.size();*/
+	lightingData.maxPointLights = pointLightsRef.size();
 
 
 	auto& directionalLightRef = scene_->getAllDirectionalLights();
@@ -386,17 +386,17 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		light.padding1 = 0.0f;
 		light.padding2 = 0.0f;
 		//dataBlock.directionalLights[i] = light;
-		directionalLightDataBlock.directionalLights[i] = light;
+		lightingData.directionalLight[i] = light;
 	}
 	//dataBlock.maxDirectionalLights = directionalLightRef.size();
-	directionalLightDataBlock.maxDirectional = directionalLightRef.size();
+	lightingData.maxDirectionalLights = directionalLightRef.size();
 
 	err = glGetError();
 	if (err != GL_NO_ERROR)
 		std::cerr << err << std::endl;
 
 
-	ambientLightBlock.ambient_light = (const glm::vec3&)scene_->getAmbientLightIntensity();
+	lightingData.ambientLight.ambient_light = (const glm::vec3&)scene_->getAmbientLightIntensity();
 
 	err = glGetError();
 	if (err != GL_NO_ERROR)
@@ -404,32 +404,25 @@ void MyView::windowViewWillStart(tygra::Window * window)
 #pragma endregion 
 
 #pragma region UBO 
-	ambientLightShader->Bind();
-	glGenBuffers(1, &ambientLightUBO);
-	glBindBuffer(GL_UNIFORM_BUFFER, ambientLightUBO);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(DataBlock), &ambientLightBlock, GL_STREAM_DRAW);
+	
+	glGenBuffers(1, &lightDataUBO);
+	glBindBuffer(GL_UNIFORM_BUFFER, lightDataUBO);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(DataBlock), &lightingData, GL_STREAM_DRAW);
 
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ambientLightUBO);
+	ambientLightShader->Bind();
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightDataUBO);
 	glUniformBlockBinding(ambientLightShader->GetShaderID(), glGetUniformBlockIndex(ambientLightShader->GetShaderID(), "DataBlock"), 0);
 	ambientLightShader->Unbind();
 
 	directionalLightShader->Bind();
-	glGenBuffers(1, &directionalLightBlockUBO);
-	glBindBuffer(GL_UNIFORM_BUFFER, directionalLightBlockUBO);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(DirectionalLightDataBlock), &directionalLightDataBlock, GL_STREAM_DRAW);
-
-	glBindBufferBase(GL_UNIFORM_BUFFER, 1, directionalLightBlockUBO);
-	glUniformBlockBinding(directionalLightShader->GetShaderID(), glGetUniformBlockIndex(directionalLightShader->GetShaderID(), "DataBlock"), 1);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightDataUBO);
+	glUniformBlockBinding(directionalLightShader->GetShaderID(), glGetUniformBlockIndex(directionalLightShader->GetShaderID(), "DataBlock"), 0);
 	directionalLightShader->Unbind();
 
 
 	pointLightShader->Bind();
-	glGenBuffers(1, &pointLightBlockUBO);
-	glBindBuffer(GL_UNIFORM_BUFFER, pointLightBlockUBO);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(PointLightDataBlock), &pointLightBlock, GL_STREAM_DRAW);
-
-	glBindBufferBase(GL_UNIFORM_BUFFER, 1, pointLightBlockUBO);
-	glUniformBlockBinding(pointLightShader->GetShaderID(), glGetUniformBlockIndex(pointLightShader->GetShaderID(), "DataBlock"), 2);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightDataUBO);
+	glUniformBlockBinding(pointLightShader->GetShaderID(), glGetUniformBlockIndex(pointLightShader->GetShaderID(), "DataBlock"), 0);
 	pointLightShader->Unbind();
 #pragma endregion 
 }
@@ -508,9 +501,9 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	glBindRenderbuffer(GL_RENDERBUFFER, lbuffer_colour_rbo_);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_RECTANGLE, gbuffer_depth_tex_, 0);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_RECTANGLE, gbuffer_position_tex_, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_RECTANGLE, gbuffer_position_tex_, 0);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_RECTANGLE, gbuffer_normal_tex_, 0);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_RECTANGLE, gbuffer_material_tex_, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_RECTANGLE, gbuffer_material_tex_, 0);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, lbuffer_colour_rbo_);
 	GLuint attachments[3] = { GL_COLOR_ATTACHMENT0 , GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
 
@@ -533,13 +526,13 @@ void MyView::windowViewDidStop(tygra::Window * window)
 
 	GLuint vaos[4] = { vao , light_quad_mesh_.vao, light_sphere_mesh_.vao, light_cone_mesh_.vao };
 	GLuint textures[4] = { gbuffer_position_tex_, gbuffer_normal_tex_, gbuffer_material_tex_, gbuffer_depth_tex_ }; 
-	GLuint buffer[8] = { vertex_vbo, element_vbo, instance_vbo, material_vbo,commandBuffer, ambientLightUBO, directionalLightBlockUBO, pointLightBlockUBO };
+	GLuint buffer[6] = { vertex_vbo, element_vbo, instance_vbo, material_vbo, commandBuffer, lightDataUBO};
 
 	glDeleteVertexArrays(4, vaos);
 	glDeleteFramebuffers(1, &lbuffer_fbo_);
 	glDeleteRenderbuffers(1, &lbuffer_colour_rbo_);
 	glDeleteTextures(4, textures);
-	glDeleteBuffers(8, buffer);
+	glDeleteBuffers(6, buffer);
 }
 
 void MyView::windowViewRender(tygra::Window * window)
@@ -558,14 +551,12 @@ void MyView::windowViewRender(tygra::Window * window)
 	glm::mat4 view_xform = glm::lookAt(camera_position, camera_position + camera_direction, glm::vec3(0, 1, 0));
 	glm::mat4 projection_view = projection_xform * view_xform;
 
-	glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, lbuffer_fbo_);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	
 	glBindVertexArray(vao);
-	gbufferShadr->Bind();
+	
 #pragma region Update data changed this frame
-
-	gbufferShadr->SetUniformMatrix4FValue("projection_view", projection_view);
 	int counter = 0;
 	for (const auto &mesh : meshes_)
 	{
@@ -582,16 +573,41 @@ void MyView::windowViewRender(tygra::Window * window)
 		}
 
 	}
-
 	glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(glm::mat4) * (matrices.size()), glm::value_ptr(matrices[0]));
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	const auto& pointLights = scene_->getAllPointLights();
+	for (int i = 0; i < pointLights.size(); ++i)
+	{
+		lightingData.pointLight[i].position = (const glm::vec3&)pointLights[i].getPosition();
+		lightingData.pointLight[i].range = pointLights[i].getRange();
+		lightingData.pointLight[i].intensity = (const glm::vec3&)pointLights[i].getIntensity();		
+	}
+	lightingData.ambientLight.ambient_light = (const glm::vec3&)scene_->getAmbientLightIntensity();
+	
+	const auto& directionalLights = scene_->getAllDirectionalLights();
+	for (int i = 0; i < directionalLights.size(); ++i)
+	{
+		lightingData.directionalLight[i].direction = (const glm::vec3&)directionalLights[i].getDirection();
+		lightingData.directionalLight[i].intensity = (const glm::vec3&)directionalLights[i].getIntensity();
+	}
+	
+	lightingData.cameraPosition = (const glm::vec3&)scene_->getCamera().getPosition();
+	lightingData.maxPointLights = pointLights.size();
+	lightingData.maxDirectionalLights = directionalLights.size();
+	lightingData.maxSpotlights = 0.0f;
+	glBindBuffer(GL_UNIFORM_BUFFER, lightDataUBO);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(DataBlock), &lightingData, GL_STREAM_DRAW);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 #pragma endregion 
 
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
 	
 #pragma region Draw call for rendering normal sponza
+	gbufferShadr->Bind(); 
+	glUniformMatrix4fv(glGetUniformLocation(gbufferShadr->GetShaderID(), "projection_view"), 1, GL_FALSE, glm::value_ptr(projection_view));
 
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
 	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, meshes_.size(), 0);
@@ -599,58 +615,46 @@ void MyView::windowViewRender(tygra::Window * window)
 
 #pragma endregion 
 
+	
+
 	glDisable(GL_DEPTH_TEST);
 	gbufferShadr->Unbind();
 
-	
+	// --------------------------------------------------------- LIGHTING -----------------------------------------------------------
 
 	glBindVertexArray(light_quad_mesh_.vao);
 	
-	/*ambientLightShader->Bind();
+	ambientLightShader->Bind();
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-	ambientLightShader->Unbind();*/
-
-	directionalLightShader->Bind();
-	glBindBuffer(GL_UNIFORM_BUFFER, directionalLightBlockUBO);
-	directionalLightDataBlock.cameraPosition = (const glm::vec3&)scene_->getCamera().getPosition();
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(DirectionalLightDataBlock), &directionalLightDataBlock);
-	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-	directionalLightShader->Unbind();
-
-	glBindVertexArray(0);
+	ambientLightShader->Unbind();
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE);
 	glBlendEquation(GL_FUNC_ADD);
 	glDepthFunc(GL_LEQUAL);
 	glDepthMask(GL_FALSE);
+
+	directionalLightShader->Bind();
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+	directionalLightShader->Unbind();
+
+	glBindVertexArray(0);	
 	
 
 	glBindVertexArray(light_sphere_mesh_.vao);
 
 	pointLightShader->Bind();
-	glUniformMatrix4fv(glGetUniformLocation(pointLightShader->GetShaderID(), "projection_view"), 1, GL_FALSE, glm::value_ptr(projection_view));
-	const auto& pointLights = scene_->getAllPointLights();
-	glBindBuffer(GL_UNIFORM_BUFFER, pointLightBlockUBO);
-	pointLightBlock.cameraPosition = (const glm::vec3&)scene_->getCamera().getPosition();
+	pointLightShader->SetUniformMatrix4FValue("projection_view", projection_view);
+
 	for (int i = 0; i < pointLights.size(); ++i)
 	{
-		pointLightBlock.pointLight.position = (const glm::vec3&)pointLights[i].getPosition();
-		pointLightBlock.pointLight.range = pointLights[i].getRange();
-		pointLightBlock.pointLight.intensity = (const glm::vec3&)pointLights[i].getIntensity();
-		
 		glm::mat4 model_matrix = glm::mat4(1);
 		model_matrix = glm::translate(model_matrix, (const glm::vec3&)scene_->getAllPointLights()[i].getPosition());
 		model_matrix = glm::scale(model_matrix, glm::vec3(scene_->getAllPointLights()[i].getRange()));
 
-		
-		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(PointLightDataBlock), &pointLightBlockUBO);
-
-		glUniformMatrix4fv(glGetUniformLocation(pointLightShader->GetShaderID(), "model_matrix"), 1, GL_FALSE, glm::value_ptr(model_matrix));
-
+		pointLightShader->SetUniformMatrix4FValue("model_matrix", model_matrix);
+		pointLightShader->SetUniformIntValue("currentPointLight", i);
 		glDrawElements(GL_TRIANGLES, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
-		//glMultiDrawElements(GL_TRIANGLES, &light_sphere_mesh_.element_count, GL_UNSIGNED_INT, nullptr, pointLights.size());
-
 	}
 
 	
@@ -661,9 +665,8 @@ void MyView::windowViewRender(tygra::Window * window)
 	glDisable(GL_BLEND);
 	glDepthMask(GL_TRUE);
 	
-
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, lbuffer_fbo_);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+
 	glBlitFramebuffer(0, 0, viewport_size[2], viewport_size[3], 0, 0, viewport_size[2], viewport_size[3], GL_COLOR_BUFFER_BIT, GL_NEAREST);
-	
 }

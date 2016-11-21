@@ -4,13 +4,41 @@ layout (location = 0) uniform sampler2DRect sampler_world_position;
 layout (location = 1) uniform sampler2DRect sampler_world_normal;
 layout (location = 2) uniform sampler2DRect sampler_world_material;
 
-layout (std140) uniform DataBlock {
-	vec3 camera_position;
-	vec3 global_ambient_light;
+struct DirectionalLight
+{
+	vec3 direction;
+	float padding1;
+	vec3 intensity;
+	float padding2;
+};
+
+struct PointLight
+{
+	vec3 position;
+	float range;
+	vec3 intensity;
+	float padding;
+};
+
+struct AmbientLightBlock
+{
+	vec3 ambient_light;
+	float padding;
 };
 
 
-layout (location = 0) out vec3 reflected_light;
+layout(std140) uniform DataBlock
+{
+	PointLight pointLight[20];
+	AmbientLightBlock ambientLight;
+	DirectionalLight directionalLight[2];
+	vec3 cameraPosition;
+	float maxPointLights;	
+	float maxDirectionalLights;
+	float maxSpotlights;
+};
+
+out vec3 reflected_light;
 
 void main(void)
 {
@@ -18,10 +46,10 @@ void main(void)
 
 	////vec3 texel_P = texelFetch(sampler_world_position, ivec2(gl_FragCoord.xy)).rgb;
 	////vec3 texel_N = texelFetch(sampler_world_normal, ivec2(gl_FragCoord.xy)).rgb;
-	//vec3 texel_M = texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).rgb;
+	vec3 texel_M = texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).rgb;
 	//vec3 N = normalize(texel_N);
 
 	//final_colour *= texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).rgb;
 
-	reflected_light = vec3(final_colour);
+	reflected_light = texel_M * ambientLight.ambient_light;
 }

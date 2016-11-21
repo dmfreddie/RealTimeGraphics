@@ -48,7 +48,8 @@ void Shader::SetUniformIntValue(const char* name, int value)
 
 void Shader::SetUniformMatrix4FValue(const char* name, glm::mat4 value)
 {
-		glUniformMatrix4fv(GetUniformLocation(name), 1, GL_FALSE, glm::value_ptr(value));
+	GLuint loc = GetUniformLocation(name);
+	glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(value));
 }
 
 void Shader::CompileShader(std::string shaderFileName, GLenum shaderType, GLuint& shaderVariable)

@@ -23,7 +23,7 @@ out float vert_diffuse_texture_ID;
 void main(void)
 {
 	//Convert the noormals and positions into world space
-	vertexNormal = mat3(model_matrix) *  vertex_normal;
+	vertexNormal = normalize(mat3(model_matrix) *  vertex_normal);
 	vertexPos = mat3(model_matrix) * vertex_position;
 
 	vert_diffuse_colour = vertex_diffuse_colour;

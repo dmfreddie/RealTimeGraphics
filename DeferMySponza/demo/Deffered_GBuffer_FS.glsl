@@ -1,8 +1,8 @@
 #version 330
 
-layout (location = 2) out vec4 gbufferTexture0;
+layout (location = 0) out vec4 gbufferTexture0;
 layout (location = 1) out vec4 gbufferTexture1;
-layout (location = 0) out vec4 gbufferTexture2;
+layout (location = 2) out vec4 gbufferTexture2;
 
 
 in vec3 vertexPos;

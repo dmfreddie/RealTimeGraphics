@@ -59,32 +59,20 @@ struct PointLight
 	float padding;
 };
 
-struct DirectionalLightDataBlock
-{
-	DirectionalLight directionalLights[3];
-	glm::vec3 cameraPosition;
-	float maxDirectional;
-};
-
 struct AmbientLightBlock
 {
-	glm::vec3 cameraPosition;
-	glm::vec3 ambient_light;;
+	glm::vec3 ambient_light;
+	float padding;
 };
 
-struct PointLightDataBlock
-{
-	PointLight pointLight;
-	glm::vec3 cameraPosition;
-	float maxPointLights;
-};
 
 struct DataBlock
 {
-	DirectionalLight directionalLights[3];
-	glm::vec3 globalAmbientLight;
-	float maxPointLights;
+	PointLight pointLight[20];
+	AmbientLightBlock ambientLight;
+	DirectionalLight directionalLight[2];
 	glm::vec3 cameraPosition;
+	float maxPointLights;	
 	float maxDirectionalLights;
 	float maxSpotlights;
 };
@@ -152,11 +140,6 @@ private:
 	Shader *gbufferShadr, *ambientLightShader, *pointLightShader, *directionalLightShader;
 #pragma endregion 
 
-	DirectionalLightDataBlock directionalLightDataBlock;
-	AmbientLightBlock ambientLightBlock;
-	PointLightDataBlock pointLightBlock;
-
-	GLuint ambientLightUBO;
-	GLuint directionalLightBlockUBO;
-	GLuint pointLightBlockUBO;
+	DataBlock lightingData;
+	GLuint lightDataUBO;
 };

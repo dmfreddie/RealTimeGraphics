@@ -12,10 +12,30 @@ struct DirectionalLight
 	float padding2;
 };
 
-layout(std140) uniform DataBlock{
-	DirectionalLight directionalLights[3];
-	vec3 camera_position;
+struct PointLight
+{
+	vec3 position;
+	float range;
+	vec3 intensity;
+	float padding;
+};
+
+struct AmbientLightBlock
+{
+	vec3 ambient_light;
+	float padding;
+};
+
+
+layout(std140) uniform DataBlock
+{
+	PointLight pointLight[20];
+	AmbientLightBlock ambientLight;
+	DirectionalLight directionalLight[2];
+	vec3 cameraPosition;
+	float maxPointLights;	
 	float maxDirectionalLights;
+	float maxSpotlights;
 };
 
 
@@ -25,7 +45,7 @@ vec3 DirLightCalc(vec3 colour);
 
 void main(void)
 {
-	vec3 final_colour = DirLightCalc(vec3(0, 0, 0));
+	vec3 final_colour = DirLightCalc(vec3(0,0,0));
 	reflected_light = final_colour;
 }
 
@@ -39,11 +59,11 @@ vec3 DirLightCalc(vec3 colour)
 
 	for (int i = 0; i < maxDirectionalLights; i++)
 	{
-		DirectionalLight dir = directionalLights[i];
+		DirectionalLight dir = directionalLight[i];
 
 		float scaler = max(0.0, dot(normalize(vertexNormal), dir.direction));
 
-		vec3 diffuseIntensity = (dir.intensity * scaler) * texel_M;
+		vec3 diffuseIntensity = (dir.intensity * scaler);
 		
 		colour += diffuseIntensity;
 	}
