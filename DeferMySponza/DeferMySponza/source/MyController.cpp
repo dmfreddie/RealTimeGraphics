@@ -109,6 +109,9 @@ void MyController::windowControlKeyboardChanged(tygra::Window * window,
 
     switch (key_index)
     {
+	case tygra::kWindowKeyF1:
+		view_->ToggleSMAA();
+		break;
     case tygra::kWindowKeyF2:
         scene_->toggleCameraAnimation();
         break;

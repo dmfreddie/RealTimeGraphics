@@ -11,6 +11,11 @@
 #include "Shader.h"
 #include <map>
 
+#define AREATEX_WIDTH 160
+#define AREATEX_HEIGHT 560
+#define SEARCHTEX_WIDTH 66
+#define SEARCHTEX_HEIGHT 33
+
 struct DrawElementsIndirectCommand
 {
 	GLuint vertexCount;
@@ -99,6 +104,9 @@ public:
     void setScene(const scene::Context * scene);
 
 	void Stop(tygra::Window* window);
+
+	void ToggleSMAA();
+
 private:
 
     void windowViewWillStart(tygra::Window * window) override;
@@ -145,12 +153,25 @@ private:
 
 	GLuint lbuffer_fbo_{ 0 };
 	GLuint lbuffer_colour_rbo_{ 0 };
+
+	GLuint albedo_tex;
+	GLuint edge_tex;
+	GLuint blend_tex;
+	GLuint area_tex;
+	GLuint search_tex;
+
+	GLuint albedo_fbo;
+	GLuint edge_fbo;
+	GLuint blend_fbo;
+
 #pragma endregion 
 
 #pragma  region Shaders
-	Shader *gbufferShadr, *ambientLightShader, *pointLightShader, *directionalLightShader, *spotlightShader;
+	Shader *gbufferShadr, *ambientLightShader, *pointLightShader, *directionalLightShader, *spotlightShader, *edge_shader, *blend_shader, *neighborhood_shader;
 #pragma endregion 
 
 	DataBlock lightingData;
 	GLuint lightDataUBO;
+
+	bool enableSMAA = true;
 };

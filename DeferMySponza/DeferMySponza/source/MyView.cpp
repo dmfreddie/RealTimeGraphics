@@ -10,6 +10,9 @@
 #include <vector>
 #include <cassert>
 
+// SMAA adapted from: https://github.com/scrawl/smaa-opengl
+#define SMAA_GLSL_4 1
+#include "smaa_glsl.h"
 
 MyView::MyView()
 {
@@ -26,6 +29,11 @@ void MyView::setScene(const scene::Context * scene)
 void MyView::Stop(tygra::Window * window)
 {
 	this->windowViewDidStop(window);
+}
+
+void MyView::ToggleSMAA()
+{
+	enableSMAA = !enableSMAA;
 }
 
 void MyView::windowViewWillStart(tygra::Window * window)
@@ -438,6 +446,30 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glUniformBlockBinding(pointLightShader->GetShaderID(), glGetUniformBlockIndex(pointLightShader->GetShaderID(), "DataBlock"), 0);
 	pointLightShader->Unbind();
 #pragma endregion 
+
+#pragma region SMAA
+
+	edge_shader = new Shader(edge_vs.c_str(), edge_ps.c_str(), true);
+	edge_shader->Bind();
+	edge_shader->SetUniformIntValue("albedo_tex", 0);
+	edge_shader->Unbind();
+
+
+	blend_shader = new Shader(blend_vs.c_str(), blend_ps.c_str(), true);
+	blend_shader->Bind();
+	blend_shader->SetUniformIntValue("albedo_tex", 0);
+	blend_shader->SetUniformIntValue("area_tex", 1);
+	blend_shader->SetUniformIntValue("search_tex", 2);
+	blend_shader->Unbind();
+
+	neighborhood_shader = new Shader(neighborhood_vs.c_str(), neighborhood_ps.c_str(), true);
+	neighborhood_shader->Bind();
+	neighborhood_shader->SetUniformIntValue("albedo_tex", 0);
+	neighborhood_shader->SetUniformIntValue("blend_tex", 1);
+	neighborhood_shader->Unbind();
+#pragma  endregion 
+
+
 }
 
 void MyView::windowViewDidReset(tygra::Window * window,
@@ -446,6 +478,7 @@ void MyView::windowViewDidReset(tygra::Window * window,
 {
     glViewport(0, 0, width, height);
 
+#pragma region GBuffer
 	/*
 	* Tutorial: This is where you'll recreate texture and renderbuffer objects
 	*           and attach them to framebuffer objects.
@@ -528,6 +561,127 @@ void MyView::windowViewDidReset(tygra::Window * window,
 		tglDebugMessage(GL_DEBUG_SEVERITY_HIGH_ARB, "framebuffer not complete");
 	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+#pragma endregion 
+
+#pragma region SMAA
+
+	glEnable(GL_TEXTURE_2D);
+
+	glGenTextures(1, &albedo_tex);
+	glBindTexture(GL_TEXTURE_2D, albedo_tex);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
+
+	glGenTextures(1, &edge_tex);
+	glBindTexture(GL_TEXTURE_2D, edge_tex);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
+
+	glGenTextures(1, &blend_tex);
+	glBindTexture(GL_TEXTURE_2D, blend_tex);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
+
+
+	unsigned char* buffer = 0;
+	FILE* f = 0;
+
+	buffer = new unsigned char[1024 * 1024];
+	f = fopen("smaa_area.raw", "rb"); //rb stands for "read binary file"
+
+	if (!f)
+	{
+		std::cerr << "Couldn't open smaa_area.raw.\n";
+		exit(1);
+	}
+
+	fread(buffer, AREATEX_WIDTH * AREATEX_HEIGHT * 2, 1, f);
+	fclose(f);
+
+	f = 0;
+
+	glGenTextures(1, &area_tex);
+	glBindTexture(GL_TEXTURE_2D, area_tex);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RG8, (GLsizei)AREATEX_WIDTH, (GLsizei)AREATEX_HEIGHT, 0, GL_RG, GL_UNSIGNED_BYTE, buffer);
+
+
+	f = fopen("smaa_search.raw", "rb");
+
+	if (!f)
+	{
+		std::cerr << "Couldn't open smaa_search.raw.\n";
+		exit(1);
+	}
+
+	fread(buffer, SEARCHTEX_WIDTH * SEARCHTEX_HEIGHT, 1, f);
+	fclose(f);
+
+	f = 0;
+
+	glGenTextures(1, &search_tex);
+	glBindTexture(GL_TEXTURE_2D, search_tex);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RG8, (GLsizei)AREATEX_WIDTH, (GLsizei)AREATEX_HEIGHT, 0, GL_RG, GL_UNSIGNED_BYTE, buffer);
+
+
+	GLenum modes[] = { GL_COLOR_ATTACHMENT0 };
+
+	glGenFramebuffers(1, &albedo_fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, albedo_fbo);
+	glDrawBuffers(1, modes);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, albedo_tex, 0);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+	{
+		std::cerr << "FBO not complete.\n";
+		exit(1);
+	}
+
+	glGenFramebuffers(1, &edge_fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, edge_fbo);
+	glDrawBuffers(1, modes);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, edge_tex, 0);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+	{
+		std::cerr << "FBO not complete.\n";
+		exit(1);
+	}
+
+	glGenFramebuffers(1, &blend_fbo);
+	glBindFramebuffer(GL_FRAMEBUFFER, blend_fbo);
+	glDrawBuffers(1, modes);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, blend_tex, 0);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+	{
+		std::cerr << "FBO not complete.\n";
+		exit(1);
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+
+#pragma endregion 
 }
 
 void MyView::windowViewDidStop(tygra::Window * window)
@@ -663,50 +817,139 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	glBindVertexArray(light_sphere_mesh_.vao);
 
-	pointLightShader->Bind();
-	pointLightShader->SetUniformMatrix4FValue("projection_view", projection_view);
+	//pointLightShader->Bind();
+	//pointLightShader->SetUniformMatrix4FValue("projection_view", projection_view);
 
-	for (int i = 0; i < pointLights.size(); ++i)
-	{
-		glm::mat4 model_matrix = glm::mat4(1);
-		model_matrix = glm::translate(model_matrix, (const glm::vec3&)scene_->getAllPointLights()[i].getPosition());
-		model_matrix = glm::scale(model_matrix, glm::vec3(scene_->getAllPointLights()[i].getRange()));
+	//for (int i = 0; i < pointLights.size(); ++i)
+	//{
+	//	glm::mat4 model_matrix = glm::mat4(1);
+	//	model_matrix = glm::translate(model_matrix, (const glm::vec3&)scene_->getAllPointLights()[i].getPosition());
+	//	model_matrix = glm::scale(model_matrix, glm::vec3(scene_->getAllPointLights()[i].getRange()));
 
-		pointLightShader->SetUniformMatrix4FValue("model_matrix", model_matrix);
-		pointLightShader->SetUniformIntValue("currentPointLight", i);
-		glDrawElements(GL_TRIANGLES, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
-	}
+	//	pointLightShader->SetUniformMatrix4FValue("model_matrix", model_matrix);
+	//	pointLightShader->SetUniformIntValue("currentPointLight", i);
+	//	glDrawElements(GL_TRIANGLES, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
+	//}
+
+	//
+	//pointLightShader->Unbind();
+	//glBindVertexArray(0);
+
+
+	//glBindVertexArray(light_cone_mesh_.vao);
+
+	//spotlightShader->Bind();
+	//spotlightShader->SetUniformMatrix4FValue("projection_view", projection_view);
+
+	//for (int i = 0; i < spotlightRef.size(); ++i)
+	//{
+	//	glm::mat4 model_matrix = glm::mat4(1);
+	//	model_matrix = glm::translate(model_matrix, (const glm::vec3&)spotlightRef[i].getPosition());
+	//	model_matrix = glm::scale(model_matrix, glm::vec3(spotlightRef[i].getRange()));
+	//	//model_matrix = glm::rotate(model_matrix, glm::vec3(spotlightRef[i].getDirection()));
+
+	//	spotlightShader->SetUniformMatrix4FValue("model_matrix", model_matrix);
+	//	spotlightShader->SetUniformIntValue("currentSpotLight", i);
+	//	glDrawElements(GL_TRIANGLES, light_cone_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
+	//}
+
+
+	//pointLightShader->Unbind();
+	//glBindVertexArray(0);
+	
+
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, lbuffer_fbo_);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, edge_fbo);
+
+	glBlitFramebuffer(0, 0, viewport_size[2], viewport_size[3], 0, 0, viewport_size[2], viewport_size[3], GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
 	
-	pointLightShader->Unbind();
-	glBindVertexArray(0);
-
-
-	glBindVertexArray(light_cone_mesh_.vao);
-
-	spotlightShader->Bind();
-	spotlightShader->SetUniformMatrix4FValue("projection_view", projection_view);
-
-	for (int i = 0; i < spotlightRef.size(); ++i)
-	{
-		glm::mat4 model_matrix = glm::mat4(1);
-		model_matrix = glm::translate(model_matrix, (const glm::vec3&)spotlightRef[i].getPosition());
-		model_matrix = glm::scale(model_matrix, glm::vec3(spotlightRef[i].getRange()));
-		//model_matrix = glm::rotate(model_matrix, glm::vec3(spotlightRef[i].getDirection()));
-
-		spotlightShader->SetUniformMatrix4FValue("model_matrix", model_matrix);
-		spotlightShader->SetUniformIntValue("currentSpotLight", i);
-		glDrawElements(GL_TRIANGLES, light_cone_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
-	}
-
-
-	pointLightShader->Unbind();
-	glBindVertexArray(0);
 	
+	if (enableSMAA)
+	{
+
+
+		// SMAA EDGE PASS
+
+		glBindFramebuffer(GL_FRAMEBUFFER, edge_fbo);
+
+		//glClearColor(0, 0, 0, 0);
+		//glClear(GL_COLOR_BUFFER_BIT);
+
+		edge_shader->Bind();
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, albedo_tex);
+
+		glBindVertexArray(light_quad_mesh_.vao);
+		glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+		glBindVertexArray(0);
+
+		edge_shader->Unbind();
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+
+		// SMAA BLEND WEIGHT PASS
+
+		glBindFramebuffer(GL_FRAMEBUFFER, blend_fbo);
+
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, edge_fbo);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, blend_fbo);
+
+		glBlitFramebuffer(0, 0, viewport_size[2], viewport_size[3], 0, 0, viewport_size[2], viewport_size[3], GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+		//glClearColor(0, 0, 0, 0);
+		//glClear(GL_COLOR_BUFFER_BIT);
+
+		blend_shader->Bind();
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, edge_tex);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, area_tex);
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, search_tex);
+
+		glBindVertexArray(light_quad_mesh_.vao);
+		glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+		glBindVertexArray(0);
+
+		blend_shader->Unbind();
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+
+		// SMAA NEIGHBORHOOD BLEND PASS
+
+		neighborhood_shader->Bind();
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, albedo_tex);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, blend_tex);
+
+		glEnable(GL_FRAMEBUFFER_SRGB);
+
+		glBindVertexArray(light_quad_mesh_.vao);
+		glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+		glBindVertexArray(0);
+
+		glDisable(GL_FRAMEBUFFER_SRGB);
+
+		neighborhood_shader->Unbind();
+
+		//glActiveTexture(GL_TEXTURE0);
+		//glBindTexture(GL_TEXTURE_2D, albedo_tex);
+		//glBindVertexArray(light_quad_mesh_.vao);
+		//glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+		//glBindVertexArray(0);
+
+	}
 
 	glDisable(GL_BLEND);
 	glDepthMask(GL_TRUE);
-	
+
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, lbuffer_fbo_);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 

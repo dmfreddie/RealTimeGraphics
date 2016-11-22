@@ -6,7 +6,7 @@
 class Shader
 {
 public:
-	Shader(const char* vertexShaderPath, const char* fragMentShaderPath);
+	Shader(const char* vertexShaderPath, const char* fragMentShaderPath, bool directEntry = false);
 	Shader(){};
 	~Shader();
 
@@ -20,9 +20,11 @@ public:
 	void Unbind();
 	const unsigned int GetShaderID() const;
 private:
-	void CompileShader(std::string shaderFileName, GLenum shaderType, GLuint& shaderVariable);
+	void CompileShader(std::string shaderFileName, GLenum shaderType, GLuint& shaderVariable, bool directEntry = false);
 	bool CheckLinkStatus(GLuint shaderProgram);
 	bool UniformExistsInMap(const char* name, bool addToMapIfExists = true);
+	void shader_include(std::string& shader);
+	void replace_all(std::string& str, const std::string& from, const std::string& to);
 
 private:
 	unsigned int m_vertexShader = 0, m_fragmentShader = 0, m_shaderProgram = 0;

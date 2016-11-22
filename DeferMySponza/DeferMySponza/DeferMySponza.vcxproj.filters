@@ -42,6 +42,18 @@
     <ClInclude Include="source\Shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="source\SMAA.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\SearchTex.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\AreaTex.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="source\smaa_glsl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\Deffered_Ambient_FS.glsl">

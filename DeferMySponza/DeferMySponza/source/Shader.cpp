@@ -2,13 +2,14 @@
 #include <iostream>
 #include <tygra/FileHelper.hpp>
 #include <tgl/tgl.h>
+#include <fstream>
 
 
-Shader::Shader(const char* vertexShaderPath, const char* fragMentShaderPath)
+Shader::Shader(const char* vertexShaderPath, const char* fragMentShaderPath, bool directEntry)
 {
 	m_shaderProgram = glCreateProgram();
-	CompileShader(vertexShaderPath, GL_VERTEX_SHADER, m_vertexShader);
-	CompileShader(fragMentShaderPath, GL_FRAGMENT_SHADER, m_fragmentShader);
+	CompileShader(vertexShaderPath, GL_VERTEX_SHADER, m_vertexShader, directEntry);
+	CompileShader(fragMentShaderPath, GL_FRAGMENT_SHADER, m_fragmentShader, directEntry);
 
 	
 	glAttachShader(m_shaderProgram, m_vertexShader);
@@ -17,7 +18,7 @@ Shader::Shader(const char* vertexShaderPath, const char* fragMentShaderPath)
 	glDeleteShader(m_fragmentShader);
 	glLinkProgram(m_shaderProgram);
 
-	if (CheckLinkStatus(m_shaderProgram))
+	if (CheckLinkStatus(m_shaderProgram) && !directEntry)
 		std::cout << vertexShaderPath << " & " << fragMentShaderPath << " shaders compiled!" << std::endl;
 }
 Shader::~Shader()
@@ -52,11 +53,22 @@ void Shader::SetUniformMatrix4FValue(const char* name, glm::mat4 value)
 	glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(value));
 }
 
-void Shader::CompileShader(std::string shaderFileName, GLenum shaderType, GLuint& shaderVariable)
+void Shader::CompileShader(std::string shaderFileName, GLenum shaderType, GLuint& shaderVariable, bool directEntry)
 {
 	GLint compile_status = 0;
 	shaderVariable = glCreateShader(shaderType);
-	std::string shader_string = tygra::createStringFromFile("resource:///" + shaderFileName);
+	std::string shader_string;
+
+	if(directEntry)
+	{
+		shader_string = shaderFileName;
+		shader_include(shader_string);
+		replace_all(shader_string, "hash ", "#");
+	}
+	else
+	{
+		shader_string = tygra::createStringFromFile("resource:///" + shaderFileName);
+	}
 	const char *shader_code = shader_string.c_str();
 	glShaderSource(shaderVariable, 1, (const GLchar **)&shader_code, NULL);
 	glCompileShader(shaderVariable);
@@ -111,4 +123,53 @@ bool Shader::UniformExistsInMap(const char* name, bool addToMapIfExists)
 const unsigned int Shader::GetShaderID() const
 {
 	return m_shaderProgram;
+}
+
+//this function adds #include functionality to GLSL
+void Shader::shader_include(std::string& shader)
+{
+	size_t start_pos = 0;
+	std::string include_dir = "#include ";
+
+	while ((start_pos = shader.find(include_dir, start_pos)) != std::string::npos)
+	{
+		int pos = start_pos + include_dir.length() + 1;
+		int length = shader.find("\"", pos);
+		std::string file = shader.substr(pos, length - pos);
+		std::string content = "";
+
+		std::ifstream f;
+		f.open(file.c_str());
+
+		if (f.is_open())
+		{
+			char buffer[1024];
+
+			while (!f.eof())
+			{
+				f.getline(buffer, 1024);
+				content += buffer;
+				content += "\n";
+			}
+		}
+		else
+		{
+			std::cerr << "Couldn't include shader file: " << file << "\n";
+		}
+
+		shader.replace(start_pos, (length + 1) - start_pos, content);
+		start_pos += content.length();
+	}
+}
+
+//replaces all occurances of a string in another string
+void Shader::replace_all(std::string& str, const std::string& from, const std::string& to)
+{
+	size_t start_pos = 0;
+
+	while ((start_pos = str.find(from, start_pos)) != std::string::npos)
+	{
+		str.replace(start_pos, from.length(), to);
+		start_pos += to.length(); // In case 'to' contains 'from', like replacing 'x' with 'yx'
+	}
 }
