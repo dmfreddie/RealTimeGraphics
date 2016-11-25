@@ -51,6 +51,21 @@ layout(std140) uniform DataBlock
 	float maxSpotlights;
 };
 
+struct Material
+{
+	vec3 diffuseColour;
+	float vertexShineyness;
+	vec3 specularColour;	
+	int diffuseTextureID;
+};
+
+
+layout(std140) uniform MaterialBlock
+{
+	Material materials[30];
+};
+
+
 out vec3 reflected_light;
 
 vec3 DiffuseLight(vec3 lightPosition, vec3 lightIntensity, float attenuation);
@@ -72,7 +87,7 @@ Also call the specular for that light and add it to the diffuse value
 */
 vec3 DiffuseLight(vec3 lightPosition, vec3 lightIntensity, float attenuation)
 {
-	vec3 texel_M = texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).rgb;
+	int matID = int(texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).r);
 	vec3 texel_N = texelFetch(sampler_world_normal, ivec2(gl_FragCoord.xy)).rgb;
 	vec3 vertexPos = texelFetch(sampler_world_position, ivec2(gl_FragCoord.xy)).rgb;
 	vec3 vertexNormal = normalize(texel_N);
@@ -83,7 +98,7 @@ vec3 DiffuseLight(vec3 lightPosition, vec3 lightIntensity, float attenuation)
 	if (scaler == 0)
 		return vec3(0, 0, 0);
 
-	vec3 diffuse_intensity = lightIntensity * scaler * texel_M;
+	vec3 diffuse_intensity = lightIntensity * scaler * materials[matID].diffuseColour;
 
 
 	return  diffuse_intensity;

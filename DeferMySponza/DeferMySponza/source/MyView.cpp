@@ -193,6 +193,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		std::cerr << err << std::endl;
 
 	int materialIDCount = 0;
+	int counter = 0;
 	for (const auto &ent1 : meshes_)
 	{
 
@@ -211,7 +212,9 @@ void MyView::windowViewWillStart(tygra::Window * window)
 			mat.vertexShineyness = material.getShininess();
 			mat.diffuseTextureID = materialIDCount;
 			materials.push_back(mat);
+			counter++;
 		}
+		materialData.materials[materialIDCount] = materials[counter - 1];
 		materialIDCount++;
 
 	}
@@ -288,10 +291,10 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, diffuseColour));
 	glVertexAttribDivisor(3, 1);
 	glEnableVertexAttribArray(4);
-	glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, specularColour));
+	glVertexAttribPointer(4, 1, GL_FLOAT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, vertexShineyness));
 	glVertexAttribDivisor(4, 1);
 	glEnableVertexAttribArray(5);
-	glVertexAttribPointer(5, 1, GL_FLOAT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, vertexShineyness));
+	glVertexAttribPointer(5, 3, GL_FLOAT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, specularColour));
 	glVertexAttribDivisor(5, 1);
 	glEnableVertexAttribArray(6);
 	glVertexAttribPointer(6, 1, GL_FLOAT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, diffuseTextureID));
@@ -316,7 +319,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 #pragma region Command Data
 	int commandInt = 0;
-	int counter = 0;
+	counter = 0;
 	int baseInstance = 0;
 	for (const auto &mesh : meshes_)
 	{
@@ -424,22 +427,38 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glGenBuffers(1, &lightDataUBO);
 	glBindBuffer(GL_UNIFORM_BUFFER, lightDataUBO);
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(DataBlock), &lightingData, GL_STREAM_DRAW);
+	glGenBuffers(1, &materialDataUBO);
+	glBindBuffer(GL_UNIFORM_BUFFER, materialDataUBO);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(MaterialBlock), &materialData, GL_STATIC_DRAW);
 
 	ambientLightShader->Bind();
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightDataUBO);
 	glUniformBlockBinding(ambientLightShader->GetShaderID(), glGetUniformBlockIndex(ambientLightShader->GetShaderID(), "DataBlock"), 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialDataUBO);
+	glUniformBlockBinding(ambientLightShader->GetShaderID(), glGetUniformBlockIndex(ambientLightShader->GetShaderID(), "MaterialDataBlock"), 1);
 	ambientLightShader->Unbind();
 
 	directionalLightShader->Bind();
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightDataUBO);
 	glUniformBlockBinding(directionalLightShader->GetShaderID(), glGetUniformBlockIndex(directionalLightShader->GetShaderID(), "DataBlock"), 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialDataUBO);
+	glUniformBlockBinding(directionalLightShader->GetShaderID(), glGetUniformBlockIndex(directionalLightShader->GetShaderID(), "MaterialDataBlock"), 1);
 	directionalLightShader->Unbind();
 
 
 	pointLightShader->Bind();
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightDataUBO);
 	glUniformBlockBinding(pointLightShader->GetShaderID(), glGetUniformBlockIndex(pointLightShader->GetShaderID(), "DataBlock"), 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialDataUBO);
+	glUniformBlockBinding(pointLightShader->GetShaderID(), glGetUniformBlockIndex(pointLightShader->GetShaderID(), "MaterialDataBlock"), 1);
 	pointLightShader->Unbind();
+
+	spotlightShader->Bind();
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightDataUBO);
+	glUniformBlockBinding(spotlightShader->GetShaderID(), glGetUniformBlockIndex(spotlightShader->GetShaderID(), "DataBlock"), 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialDataUBO);
+	glUniformBlockBinding(spotlightShader->GetShaderID(), glGetUniformBlockIndex(spotlightShader->GetShaderID(), "MaterialDataBlock"), 1);
+	spotlightShader->Unbind();
 #pragma endregion 
 }
 
@@ -666,29 +685,27 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	glBindVertexArray(light_quad_mesh_.vao);
 	
-	
-
-	
-
-	directionalLightShader->Bind();
+	ambientLightShader->Bind();
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-	directionalLightShader->Unbind();
+	ambientLightShader->Unbind();
+
+	
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE);
 	glBlendEquation(GL_FUNC_ADD);
 	glDepthFunc(GL_LEQUAL);
-	//glDepthMask(GL_FALSE);
+	glDepthMask(GL_FALSE);
 
-	ambientLightShader->Bind();
+	directionalLightShader->Bind();
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-	ambientLightShader->Unbind();
+	directionalLightShader->Unbind();
 
 	glBindVertexArray(0);	
 	
 	
 
-	glBindVertexArray(light_sphere_mesh_.vao);
+	/*glBindVertexArray(light_sphere_mesh_.vao);
 
 	pointLightShader->Bind();
 	pointLightShader->SetUniformMatrix4FValue("projection_view", projection_view);
@@ -718,9 +735,9 @@ void MyView::windowViewRender(tygra::Window * window)
 	{
 		glm::mat4 model_matrix = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0, 1, 0));
 		model_matrix = glm::inverse(model_matrix);
-		model_matrix = glm::scale(model_matrix, glm::vec3(spotlightRef[i].getRange()));
-		model_matrix = glm::translate(model_matrix, (const glm::vec3&)spotlightRef[i].getPosition());
 		
+		model_matrix = glm::translate(model_matrix, (const glm::vec3&)spotlightRef[i].getPosition());
+		model_matrix = glm::scale(model_matrix, glm::vec3(spotlightRef[i].getRange()));
 		
 		spotlightShader->SetUniformMatrix4FValue("model_matrix", model_matrix);
 		spotlightShader->SetUniformIntValue("currentSpotLight", i);
@@ -729,11 +746,11 @@ void MyView::windowViewRender(tygra::Window * window)
 	 
 
 	spotlightShader->Unbind();
-	glBindVertexArray(0);
+	glBindVertexArray(0);*/
 	
 
 	
-	//glDepthMask(GL_TRUE);
+	glDepthMask(GL_TRUE);
 	glDisable(GL_BLEND);
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, lbuffer_fbo_);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);

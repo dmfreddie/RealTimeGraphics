@@ -36,6 +36,7 @@ struct SpotLight
 	vec3 intensity;
 	bool castShadow;
 };
+
 layout(std140) uniform DataBlock
 {
 	PointLight pointLight[20];
@@ -48,6 +49,20 @@ layout(std140) uniform DataBlock
 	float maxSpotlights;
 };
 
+struct Material
+{
+	vec3 diffuseColour;
+	float vertexShineyness;
+	vec3 specularColour;	
+	int diffuseTextureID;
+};
+
+
+layout(std140) uniform MaterialDataBlock
+{
+	Material materials[30];
+};
+
 out vec3 reflected_light;
 
 void main(void)
@@ -56,10 +71,11 @@ void main(void)
 
 	////vec3 texel_P = texelFetch(sampler_world_position, ivec2(gl_FragCoord.xy)).rgb;
 	////vec3 texel_N = texelFetch(sampler_world_normal, ivec2(gl_FragCoord.xy)).rgb;
-	vec3 texel_M = texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).rgb;
+	
+	int matID = int(texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).r);
 	//vec3 N = normalize(texel_N);
 
 	//final_colour *= texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).rgb;
 
-	reflected_light = texel_M * ambientLight.ambient_light;
+	reflected_light = materials[matID].diffuseColour * ambientLight.ambient_light;
 }

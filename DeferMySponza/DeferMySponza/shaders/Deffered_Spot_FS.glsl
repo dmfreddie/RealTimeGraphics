@@ -51,6 +51,20 @@ layout(std140) uniform DataBlock
 	float maxSpotlights;
 };
 
+struct Material
+{
+	vec3 diffuseColour;
+	float vertexShineyness;
+	vec3 specularColour;	
+	int diffuseTextureID;
+};
+
+
+layout(std140) uniform MaterialBlock
+{
+	Material materials[30];
+};
+
 out vec3 reflected_light;
 
 
@@ -82,11 +96,12 @@ vec3 DiffuseLight(vec3 lightPosition, vec3 lightIntensity, float attenuation)
 {
 	vec3 L = normalize(lightPosition - vertexPos);
 	float scaler = max(0, dot(L, normalize(vertexNormal))) * attenuation;
+	int matID = int(texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).r);
 
 	if (scaler == 0)
 		return vec3(0, 0, 0);
 
-	vec3 diffuse_intensity = lightIntensity * scaler;
+	vec3 diffuse_intensity = lightIntensity * scaler* materials[matID].diffuseColour;
 
 
 	return  diffuse_intensity;

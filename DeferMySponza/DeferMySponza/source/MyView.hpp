@@ -35,14 +35,6 @@ struct MeshGL
 	GLuint first_vertex_index;
 };
 
-struct Material
-{
-	glm::vec3 diffuseColour;
-	glm::vec3 specularColour;
-	float vertexShineyness;
-	int diffuseTextureID;
-};
-
 struct DirectionalLight
 {
 	glm::vec3 direction;
@@ -87,6 +79,21 @@ struct DataBlock
 	float maxDirectionalLights;
 	float maxSpotlights;
 };
+
+struct Material
+{
+	glm::vec3 diffuseColour;
+	float vertexShineyness;
+	glm::vec3 specularColour;	
+	int diffuseTextureID;
+};
+
+
+struct MaterialBlock
+{
+	Material materials[30];
+};
+
 
 class MyView : public tygra::WindowViewDelegate
 {
@@ -156,4 +163,7 @@ private:
 
 	DataBlock lightingData; 
 	GLuint lightDataUBO;
+
+	MaterialBlock materialData;
+	GLuint materialDataUBO;
 };
