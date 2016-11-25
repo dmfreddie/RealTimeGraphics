@@ -100,6 +100,7 @@ vec3 PointLightCalc()
 	float dist = distance(pointLight[currentPointLight].position, vertexPos);
 	float attenuation = 1 - smoothstep(0.0, pointLight[currentPointLight].range, dist);
 
+	//return vec3(dist/ pointLight[currentPointLight].range, dist/ pointLight[currentPointLight].range, dist/ pointLight[currentPointLight].range);
 	
 	vec3 colour = DiffuseLight(pointLight[currentPointLight].position, pointLight[currentPointLight].intensity, attenuation);
 	

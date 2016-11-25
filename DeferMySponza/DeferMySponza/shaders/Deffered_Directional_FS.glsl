@@ -56,7 +56,8 @@ vec3 DirLightCalc(vec3 colour);
 
 void main(void)
 {
-	vec3 final_colour = DirLightCalc(vec3(0,0,0));
+	
+	vec3 final_colour = DirLightCalc(vec3(0, 0, 0));
 	reflected_light = final_colour;
 }
 
@@ -76,7 +77,7 @@ vec3 DirLightCalc(vec3 colour)
 
 		vec3 diffuseIntensity = (dir.intensity * scaler);
 		
-		colour += diffuseIntensity;
+		colour += diffuseIntensity * texel_M;
 	}
 
 	return colour;

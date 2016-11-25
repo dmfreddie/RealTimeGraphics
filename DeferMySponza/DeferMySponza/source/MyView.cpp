@@ -356,6 +356,9 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glGenTextures(1, &gbuffer_depth_tex_);
 	glGenTextures(1, &gbuffer_material_tex_);
 
+	glGenFramebuffers(1, &gbuffer_fbo_);
+	glGenRenderbuffers(1, &gbuffer_colour_rbo_);
+
 	glGenFramebuffers(1, &lbuffer_fbo_);
 	glGenRenderbuffers(1, &lbuffer_colour_rbo_);
 #pragma endregion 
@@ -510,14 +513,14 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	// --------------------------
 
 	GLenum framebuffer_status = 0;
-	glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
-	glBindRenderbuffer(GL_RENDERBUFFER, lbuffer_colour_rbo_);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+	glBindFramebuffer(GL_FRAMEBUFFER, gbuffer_fbo_);
+	//glBindRenderbuffer(GL_RENDERBUFFER, lbuffer_colour_rbo_);
+	//glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_RECTANGLE, gbuffer_depth_tex_, 0);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_RECTANGLE, gbuffer_position_tex_, 0);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_RECTANGLE, gbuffer_normal_tex_, 0);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_RECTANGLE, gbuffer_material_tex_, 0);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, lbuffer_colour_rbo_);
+	//glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, lbuffer_colour_rbo_);
 	GLuint attachments[3] = { GL_COLOR_ATTACHMENT0 , GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2 };
 
 
@@ -527,6 +530,22 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	if (framebuffer_status != GL_FRAMEBUFFER_COMPLETE) {
 		tglDebugMessage(GL_DEBUG_SEVERITY_HIGH_ARB, "framebuffer not complete");
 	}
+
+	framebuffer_status = 0;
+	glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
+	glBindRenderbuffer(GL_RENDERBUFFER, lbuffer_colour_rbo_);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA32F, width, height);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_RECTANGLE, gbuffer_depth_tex_, 0);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, lbuffer_colour_rbo_);
+	GLuint kattachments[1] = { GL_COLOR_ATTACHMENT0 };
+	glDrawBuffers(1, kattachments);
+
+	framebuffer_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (framebuffer_status != GL_FRAMEBUFFER_COMPLETE) {
+		tglDebugMessage(GL_DEBUG_SEVERITY_HIGH_ARB, "framebuffer not complete");
+	}
+
+
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
@@ -552,7 +571,7 @@ void MyView::windowViewRender(tygra::Window * window)
 {
     assert(scene_ != nullptr);
 
-    glClearColor(0.f, 0.f, 0.f, 0.f);
+    glClearColor(0.29f, 0.f, 0.51f, 0.f);
 
 	GLint viewport_size[4];
 	glGetIntegerv(GL_VIEWPORT, viewport_size);
@@ -564,7 +583,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	glm::mat4 view_xform = glm::lookAt(camera_position, camera_position + camera_direction, glm::vec3(0, 1, 0));
 	glm::mat4 projection_view = projection_xform * view_xform;
 
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, lbuffer_fbo_);
+	glBindFramebuffer(GL_FRAMEBUFFER, gbuffer_fbo_);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	
 	glBindVertexArray(vao);
@@ -642,23 +661,31 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	// --------------------------------------------------------- LIGHTING -----------------------------------------------------------
 
+
+	glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
+
 	glBindVertexArray(light_quad_mesh_.vao);
 	
-	ambientLightShader->Bind();
-	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-	ambientLightShader->Unbind();
+	
 
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_ONE, GL_ONE);
-	glBlendEquation(GL_FUNC_ADD);
-	glDepthFunc(GL_LEQUAL);
-	glDepthMask(GL_FALSE);
+	
 
 	directionalLightShader->Bind();
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 	directionalLightShader->Unbind();
 
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_ONE, GL_ONE);
+	glBlendEquation(GL_FUNC_ADD);
+	glDepthFunc(GL_LEQUAL);
+	//glDepthMask(GL_FALSE);
+
+	ambientLightShader->Bind();
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+	ambientLightShader->Unbind();
+
 	glBindVertexArray(0);	
+	
 	
 
 	glBindVertexArray(light_sphere_mesh_.vao);
@@ -669,8 +696,8 @@ void MyView::windowViewRender(tygra::Window * window)
 	for (int i = 0; i < pointLights.size(); ++i)
 	{
 		glm::mat4 model_matrix = glm::mat4(1);
-		model_matrix = glm::translate(model_matrix, (const glm::vec3&)scene_->getAllPointLights()[i].getPosition());
-		model_matrix = glm::scale(model_matrix, glm::vec3(scene_->getAllPointLights()[i].getRange()));
+		model_matrix = glm::translate(model_matrix, (const glm::vec3&)pointLights[i].getPosition());
+		model_matrix = glm::scale(model_matrix, glm::vec3(pointLights[i].getRange()));
 
 		pointLightShader->SetUniformMatrix4FValue("model_matrix", model_matrix);
 		pointLightShader->SetUniformIntValue("currentPointLight", i);
@@ -682,31 +709,31 @@ void MyView::windowViewRender(tygra::Window * window)
 	glBindVertexArray(0);
 
 
-	glBindVertexArray(light_cone_mesh_.vao);
+	//glBindVertexArray(light_cone_mesh_.vao);
 
-	spotlightShader->Bind();
-	spotlightShader->SetUniformMatrix4FValue("projection_view", projection_view);
+	//spotlightShader->Bind();
+	//spotlightShader->SetUniformMatrix4FValue("projection_view", projection_view);
 
-	for (int i = 0; i < spotlightRef.size(); ++i)
-	{
-		glm::mat4 model_matrix = glm::mat4(1);
-		model_matrix = glm::translate(model_matrix, (const glm::vec3&)spotlightRef[i].getPosition());
-		model_matrix = glm::scale(model_matrix, glm::vec3(spotlightRef[i].getRange()));
-		//model_matrix = glm::rotate(model_matrix, glm::vec3(spotlightRef[i].getDirection()));
+	//for (int i = 0; i < spotlightRef.size(); ++i)
+	//{
+	//	glm::mat4 model_matrix = glm::mat4(1);
+	//	model_matrix = glm::translate(model_matrix, (const glm::vec3&)spotlightRef[i].getPosition());
+	//	model_matrix = glm::scale(model_matrix, glm::vec3(spotlightRef[i].getRange()));
+	//	//model_matrix = glm::rotate(model_matrix, glm::vec3(spotlightRef[i].getDirection()));
 
-		spotlightShader->SetUniformMatrix4FValue("model_matrix", model_matrix);
-		spotlightShader->SetUniformIntValue("currentSpotLight", i);
-		glDrawElements(GL_TRIANGLES, light_cone_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
-	}
+	//	spotlightShader->SetUniformMatrix4FValue("model_matrix", model_matrix);
+	//	spotlightShader->SetUniformIntValue("currentSpotLight", i);
+	//	glDrawElements(GL_TRIANGLES, light_cone_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
+	//}
+	 
 
-
-	pointLightShader->Unbind();
-	glBindVertexArray(0);
+	//spotlightShader->Unbind();
+	//glBindVertexArray(0);
 	
 
+	
+	//glDepthMask(GL_TRUE);
 	glDisable(GL_BLEND);
-	glDepthMask(GL_TRUE);
-	
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, lbuffer_fbo_);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 
