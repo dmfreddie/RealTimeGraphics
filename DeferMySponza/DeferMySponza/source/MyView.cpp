@@ -709,26 +709,27 @@ void MyView::windowViewRender(tygra::Window * window)
 	glBindVertexArray(0);
 
 
-	//glBindVertexArray(light_cone_mesh_.vao);
+	glBindVertexArray(light_cone_mesh_.vao);
 
-	//spotlightShader->Bind();
-	//spotlightShader->SetUniformMatrix4FValue("projection_view", projection_view);
+	spotlightShader->Bind();
+	spotlightShader->SetUniformMatrix4FValue("projection_view", projection_view);
 
-	//for (int i = 0; i < spotlightRef.size(); ++i)
-	//{
-	//	glm::mat4 model_matrix = glm::mat4(1);
-	//	model_matrix = glm::translate(model_matrix, (const glm::vec3&)spotlightRef[i].getPosition());
-	//	model_matrix = glm::scale(model_matrix, glm::vec3(spotlightRef[i].getRange()));
-	//	//model_matrix = glm::rotate(model_matrix, glm::vec3(spotlightRef[i].getDirection()));
-
-	//	spotlightShader->SetUniformMatrix4FValue("model_matrix", model_matrix);
-	//	spotlightShader->SetUniformIntValue("currentSpotLight", i);
-	//	glDrawElements(GL_TRIANGLES, light_cone_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
-	//}
+	for (int i = 0; i < spotlightRef.size(); ++i)
+	{
+		glm::mat4 model_matrix = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0, 1, 0));
+		model_matrix = glm::inverse(model_matrix);
+		model_matrix = glm::scale(model_matrix, glm::vec3(spotlightRef[i].getRange()));
+		model_matrix = glm::translate(model_matrix, (const glm::vec3&)spotlightRef[i].getPosition());
+		
+		
+		spotlightShader->SetUniformMatrix4FValue("model_matrix", model_matrix);
+		spotlightShader->SetUniformIntValue("currentSpotLight", i);
+		glDrawElements(GL_TRIANGLES, light_cone_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
+	}
 	 
 
-	//spotlightShader->Unbind();
-	//glBindVertexArray(0);
+	spotlightShader->Unbind();
+	glBindVertexArray(0);
 	
 
 	
