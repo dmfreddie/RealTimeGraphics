@@ -151,8 +151,6 @@ private:
 	GLuint gbuffer_material_tex_{ 0 };
 
 	GLuint gbuffer_fbo_{ 0 };
-	GLuint gbuffer_colour_rbo_{ 0 };
-
 	GLuint lbuffer_fbo_{ 0 };
 	GLuint lbuffer_colour_rbo_{ 0 };
 #pragma endregion 

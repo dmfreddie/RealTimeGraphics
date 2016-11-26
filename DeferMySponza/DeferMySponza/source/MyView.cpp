@@ -103,7 +103,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		*           with a spot light source.
 		*/
 #pragma region Create cone mesh
-		tsl::IndexedMeshPtr coneMesh = tsl::createConePtr(1.0f, 1.0f, 12);
+		tsl::IndexedMeshPtr coneMesh = tsl::createConePtr(0.5f, 1.0f, 12);
 		coneMesh = tsl::cloneIndexedMeshAsTriangleListPtr(coneMesh.get());
 
 		light_cone_mesh_.element_count = coneMesh->indexCount();
@@ -347,6 +347,46 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 #pragma endregion
 
+#pragma region UBO 
+
+	glGenBuffers(1, &lightDataUBO);
+	glBindBuffer(GL_UNIFORM_BUFFER, lightDataUBO);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(DataBlock), &lightingData, GL_STREAM_DRAW);
+	glGenBuffers(1, &materialDataUBO);
+	glBindBuffer(GL_UNIFORM_BUFFER, materialDataUBO);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(MaterialBlock), &materialData, GL_STATIC_DRAW);
+
+	ambientLightShader->Bind();
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightDataUBO);
+	glUniformBlockBinding(ambientLightShader->GetShaderID(), glGetUniformBlockIndex(ambientLightShader->GetShaderID(), "DataBlock"), 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialDataUBO);
+	glUniformBlockBinding(ambientLightShader->GetShaderID(), glGetUniformBlockIndex(ambientLightShader->GetShaderID(), "MaterialDataBlock"), 1);
+	ambientLightShader->Unbind();
+
+	directionalLightShader->Bind();
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightDataUBO);
+	glUniformBlockBinding(directionalLightShader->GetShaderID(), glGetUniformBlockIndex(directionalLightShader->GetShaderID(), "DataBlock"), 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialDataUBO);
+	glUniformBlockBinding(directionalLightShader->GetShaderID(), glGetUniformBlockIndex(directionalLightShader->GetShaderID(), "MaterialDataBlock"), 1);
+	directionalLightShader->Unbind();
+
+
+	pointLightShader->Bind();
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightDataUBO);
+	glUniformBlockBinding(pointLightShader->GetShaderID(), glGetUniformBlockIndex(pointLightShader->GetShaderID(), "DataBlock"), 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialDataUBO);
+	glUniformBlockBinding(pointLightShader->GetShaderID(), glGetUniformBlockIndex(pointLightShader->GetShaderID(), "MaterialDataBlock"), 1);
+	pointLightShader->Unbind();
+	
+	// TODO: GL_INVALID_VALUE error generated. Uniform block index exceeds the maximum supported uniform buffers. ?
+	spotlightShader->Bind();
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightDataUBO);
+	glUniformBlockBinding(spotlightShader->GetShaderID(), glGetUniformBlockIndex(spotlightShader->GetShaderID(), "DataBlock"), 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialDataUBO);
+	glUniformBlockBinding(spotlightShader->GetShaderID(), glGetUniformBlockIndex(spotlightShader->GetShaderID(), "MaterialDataBlock"), 1);
+	spotlightShader->Unbind();
+#pragma endregion 
+
 	/*
 	*			All of the framebuffers, renderbuffers and texture objects
 	*           that you'll need for this tutorial are gen'd here but not
@@ -360,7 +400,6 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glGenTextures(1, &gbuffer_material_tex_);
 
 	glGenFramebuffers(1, &gbuffer_fbo_);
-	glGenRenderbuffers(1, &gbuffer_colour_rbo_);
 
 	glGenFramebuffers(1, &lbuffer_fbo_);
 	glGenRenderbuffers(1, &lbuffer_colour_rbo_);
@@ -422,44 +461,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		std::cerr << err << std::endl;
 #pragma endregion 
 
-#pragma region UBO 
-	
-	glGenBuffers(1, &lightDataUBO);
-	glBindBuffer(GL_UNIFORM_BUFFER, lightDataUBO);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(DataBlock), &lightingData, GL_STREAM_DRAW);
-	glGenBuffers(1, &materialDataUBO);
-	glBindBuffer(GL_UNIFORM_BUFFER, materialDataUBO);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(MaterialBlock), &materialData, GL_STATIC_DRAW);
 
-	ambientLightShader->Bind();
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightDataUBO);
-	glUniformBlockBinding(ambientLightShader->GetShaderID(), glGetUniformBlockIndex(ambientLightShader->GetShaderID(), "DataBlock"), 0);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialDataUBO);
-	glUniformBlockBinding(ambientLightShader->GetShaderID(), glGetUniformBlockIndex(ambientLightShader->GetShaderID(), "MaterialDataBlock"), 1);
-	ambientLightShader->Unbind();
-
-	directionalLightShader->Bind();
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightDataUBO);
-	glUniformBlockBinding(directionalLightShader->GetShaderID(), glGetUniformBlockIndex(directionalLightShader->GetShaderID(), "DataBlock"), 0);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialDataUBO);
-	glUniformBlockBinding(directionalLightShader->GetShaderID(), glGetUniformBlockIndex(directionalLightShader->GetShaderID(), "MaterialDataBlock"), 1);
-	directionalLightShader->Unbind();
-
-
-	pointLightShader->Bind();
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightDataUBO);
-	glUniformBlockBinding(pointLightShader->GetShaderID(), glGetUniformBlockIndex(pointLightShader->GetShaderID(), "DataBlock"), 0);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialDataUBO);
-	glUniformBlockBinding(pointLightShader->GetShaderID(), glGetUniformBlockIndex(pointLightShader->GetShaderID(), "MaterialDataBlock"), 1);
-	pointLightShader->Unbind();
-
-	spotlightShader->Bind();
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightDataUBO);
-	glUniformBlockBinding(spotlightShader->GetShaderID(), glGetUniformBlockIndex(spotlightShader->GetShaderID(), "DataBlock"), 0);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialDataUBO);
-	glUniformBlockBinding(spotlightShader->GetShaderID(), glGetUniformBlockIndex(spotlightShader->GetShaderID(), "MaterialDataBlock"), 1);
-	spotlightShader->Unbind();
-#pragma endregion 
 }
 
 void MyView::windowViewDidReset(tygra::Window * window,
@@ -485,7 +487,7 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	glBindTexture(GL_TEXTURE_RECTANGLE, 0);
 
 	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_material_tex_);
-	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGB32F, width, height, 0, GL_RGB, GL_FLOAT, nullptr);
+	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGBA16F, width, height, 0, GL_RGB, GL_FLOAT, nullptr);
 	glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glBindTexture(GL_TEXTURE_RECTANGLE, 0);
@@ -529,6 +531,17 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_material_tex_);
 	glUniform1i(glGetUniformLocation(pointLightShader->GetShaderID(), "sampler_world_material"), 2);
 	pointLightShader->Unbind();
+	spotlightShader->Bind();
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_position_tex_);
+	glUniform1i(glGetUniformLocation(spotlightShader->GetShaderID(), "sampler_world_position"), 0);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_normal_tex_);
+	glUniform1i(glGetUniformLocation(spotlightShader->GetShaderID(), "sampler_world_normal"), 1);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_material_tex_);
+	glUniform1i(glGetUniformLocation(spotlightShader->GetShaderID(), "sampler_world_material"), 2);
+	spotlightShader->Unbind();
 	// --------------------------
 
 	GLenum framebuffer_status = 0;

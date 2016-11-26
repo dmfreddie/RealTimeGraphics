@@ -18,5 +18,5 @@ void main(void)
 {
 	gbufferTexture0 = vec4(vertexPos, 0.0);
 	gbufferTexture1 = vec4(vertexNormal, 0.0);
-	gbufferTexture2 = vec4(vert_diffuse_texture_ID, vert_diffuse_texture_ID, vert_diffuse_texture_ID, vert_diffuse_texture_ID);
+	gbufferTexture2 = vec4(vert_diffuse_colour, vert_diffuse_texture_ID);
 }
