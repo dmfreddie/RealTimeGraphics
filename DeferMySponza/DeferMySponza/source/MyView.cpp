@@ -555,16 +555,17 @@ void MyView::windowViewDidStop(tygra::Window * window)
 	delete ambientLightShader;
 	delete directionalLightShader;
 	delete pointLightShader;
+	delete spotlightShader;
 
 	GLuint vaos[4] = { vao , light_quad_mesh_.vao, light_sphere_mesh_.vao, light_cone_mesh_.vao };
 	GLuint textures[4] = { gbuffer_position_tex_, gbuffer_normal_tex_, gbuffer_material_tex_, gbuffer_depth_tex_ }; 
-	GLuint buffer[6] = { vertex_vbo, element_vbo, instance_vbo, material_vbo, commandBuffer, lightDataUBO};
+	GLuint buffer[10] = { vertex_vbo, element_vbo, instance_vbo, material_vbo, commandBuffer, lightDataUBO, lbuffer_colour_rbo_, lbuffer_fbo_, gbuffer_colour_rbo_, gbuffer_fbo_ };
 
 	glDeleteVertexArrays(4, vaos);
 	glDeleteFramebuffers(1, &lbuffer_fbo_);
 	glDeleteRenderbuffers(1, &lbuffer_colour_rbo_);
 	glDeleteTextures(4, textures);
-	glDeleteBuffers(6, buffer);
+	glDeleteBuffers(10, buffer);
 }
 
 void MyView::windowViewRender(tygra::Window * window)
@@ -667,22 +668,23 @@ void MyView::windowViewRender(tygra::Window * window)
 	glBindVertexArray(light_quad_mesh_.vao);
 	
 	
-
+	ambientLightShader->Bind();
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+	ambientLightShader->Unbind();
 	
 
-	directionalLightShader->Bind();
-	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-	directionalLightShader->Unbind();
+	
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE);
 	glBlendEquation(GL_FUNC_ADD);
 	glDepthFunc(GL_LEQUAL);
-	//glDepthMask(GL_FALSE);
+	glDepthMask(GL_FALSE);
 
-	ambientLightShader->Bind();
+	directionalLightShader->Bind();
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-	ambientLightShader->Unbind();
+	directionalLightShader->Unbind();
+	
 
 	glBindVertexArray(0);	
 	
@@ -718,8 +720,9 @@ void MyView::windowViewRender(tygra::Window * window)
 	{
 		glm::mat4 model_matrix = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0, 1, 0));
 		model_matrix = glm::inverse(model_matrix);
-		model_matrix = glm::scale(model_matrix, glm::vec3(spotlightRef[i].getRange()));
 		model_matrix = glm::translate(model_matrix, (const glm::vec3&)spotlightRef[i].getPosition());
+		model_matrix = glm::scale(model_matrix, glm::vec3(spotlightRef[i].getRange()));
+		
 		
 		
 		spotlightShader->SetUniformMatrix4FValue("model_matrix", model_matrix);
@@ -733,7 +736,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	
 
 	
-	//glDepthMask(GL_TRUE);
+	glDepthMask(GL_TRUE);
 	glDisable(GL_BLEND);
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, lbuffer_fbo_);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
