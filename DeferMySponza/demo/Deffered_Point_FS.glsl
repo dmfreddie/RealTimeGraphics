@@ -65,8 +65,11 @@ layout(std140) uniform MaterialDataBlock
 };
 
 out vec3 reflected_light;
-highp int index = 0;
+int index = 0;
+vec3 vertexPos;
+vec3 vertexNormal;
 
+vec3 SpecularLight(vec3 LVector, vec3 diffuse_intensity);
 vec3 DiffuseLight(vec3 lightPosition, vec3 lightIntensity, float attenuation);
 vec3 PointLightCalc();
 
@@ -74,7 +77,21 @@ void main(void)
 {
 	vec3 colour = PointLightCalc();
 
-	reflected_light = colour; // 0.5 + 0.5 * N;
+	reflected_light = colour;
+}
+
+vec3 SpecularLight(vec3 LVector, vec3 diffuse_intensity)
+{
+	vec3 lightReflection = normalize(reflect(-LVector, normalize(vertexNormal)));
+	vec3 vertexToEye = normalize(cameraPosition - vertexPos);
+	float specularFactor = max(0.0, dot(vertexToEye, lightReflection));
+
+	if (specularFactor > 0)
+	{
+		vec3 specularIntensity = diffuse_intensity * pow(specularFactor, materials[index].vertexShineyness);
+		return  materials[index].specularColour * specularIntensity;
+	}
+	return vec3(0, 0, 0);
 }
 
 /*
@@ -86,11 +103,11 @@ Also call the specular for that light and add it to the diffuse value
 */
 vec3 DiffuseLight(vec3 lightPosition, vec3 lightIntensity, float attenuation)
 {
-	index = int(texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).a);
+	index = int(texelFetch(sampler_world_position, ivec2(gl_FragCoord.xy)).a);
 	vec3 texel_M = materials[index].diffuseColour;
 	vec3 texel_N = texelFetch(sampler_world_normal, ivec2(gl_FragCoord.xy)).rgb;
-	vec3 vertexPos = texelFetch(sampler_world_position, ivec2(gl_FragCoord.xy)).rgb;
-	vec3 vertexNormal = normalize(texel_N);
+	vertexPos = texelFetch(sampler_world_position, ivec2(gl_FragCoord.xy)).rgb;
+	vertexNormal = normalize(texel_N);
 
 	vec3 L = normalize(lightPosition - vertexPos);
 	float scaler = max(0, dot(L, vertexNormal)) * attenuation;
@@ -100,8 +117,12 @@ vec3 DiffuseLight(vec3 lightPosition, vec3 lightIntensity, float attenuation)
 
 	vec3 diffuse_intensity = lightIntensity * scaler * texel_M;
 
+	if (materials[index].vertexShineyness > 0)
+		return  diffuse_intensity + SpecularLight(L, diffuse_intensity);
+	else
+		return  diffuse_intensity;
 
-	return  diffuse_intensity;
+
 }
 
 /*
@@ -115,10 +136,8 @@ vec3 PointLightCalc()
 	float dist = distance(pointLight[currentPointLight].position, vertexPos);
 	float attenuation = 1 - smoothstep(0.0, pointLight[currentPointLight].range, dist);
 
-	//return vec3(dist/ pointLight[currentPointLight].range, dist/ pointLight[currentPointLight].range, dist/ pointLight[currentPointLight].range);
 	
 	vec3 colour = DiffuseLight(pointLight[currentPointLight].position, pointLight[currentPointLight].intensity, attenuation);
-	
-	
+		
 	return colour;
 }

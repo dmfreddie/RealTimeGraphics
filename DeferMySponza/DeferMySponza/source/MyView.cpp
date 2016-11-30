@@ -563,7 +563,7 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	if (framebuffer_status != GL_FRAMEBUFFER_COMPLETE) {
 		tglDebugMessage(GL_DEBUG_SEVERITY_HIGH_ARB, "gbuffer framebuffer not complete");
 	}
-
+	 
 	framebuffer_status = 0;
 	glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
 	glBindRenderbuffer(GL_RENDERBUFFER, lbuffer_colour_rbo_);
@@ -618,7 +618,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	glm::mat4 projection_view = projection_xform * view_xform;
 
 	glBindFramebuffer(GL_FRAMEBUFFER, gbuffer_fbo_);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 	
 	glBindVertexArray(vao);
 	
@@ -677,7 +677,9 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
-	
+	/*glEnable(GL_STENCIL_TEST);
+	glStencilMask(0xFF);*/
+
 #pragma region Draw call for rendering normal sponza
 	gbufferShadr->Bind(); 
 	glUniformMatrix4fv(glGetUniformLocation(gbufferShadr->GetShaderID(), "projection_view"), 1, GL_FALSE, glm::value_ptr(projection_view));
@@ -697,6 +699,10 @@ void MyView::windowViewRender(tygra::Window * window)
 
 
 	glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
+
+	/*glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+	glStencilFunc(GL_EQUAL, 1, 0xFF);
+	glStencilMask(0xFF);*/
 
 	glBindBuffer(GL_UNIFORM_BUFFER, materialDataUBO);
 	glBindVertexArray(light_quad_mesh_.vao);
@@ -722,6 +728,7 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	glBindVertexArray(0);	
 	
+	glCullFace(GL_FRONT);
 	
 
 	glBindVertexArray(light_sphere_mesh_.vao);
@@ -768,8 +775,10 @@ void MyView::windowViewRender(tygra::Window * window)
 	spotlightShader->Unbind();
 	glBindVertexArray(0);
 	
+	glCullFace(GL_BACK);
 
 	
+	//glDisable(GL_STENCIL_TEST);
 	glDepthMask(GL_TRUE);
 	glDisable(GL_BLEND);
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, lbuffer_fbo_);
