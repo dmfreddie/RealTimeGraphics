@@ -3,6 +3,7 @@
 layout (location = 0) uniform sampler2DRect sampler_world_position;
 layout (location = 1) uniform sampler2DRect sampler_world_normal;
 layout (location = 2) uniform sampler2DRect sampler_world_material;
+layout (location = 3) uniform sampler2DArray textureArray;
 
 uniform int currentPointLight;
 
@@ -68,6 +69,7 @@ out vec3 reflected_light;
 int index = 0;
 vec3 vertexPos;
 vec3 vertexNormal;
+uniform bool useTextures;
 
 vec3 SpecularLight(vec3 LVector, vec3 diffuse_intensity);
 vec3 DiffuseLight(vec3 lightPosition, vec3 lightIntensity, float attenuation);
@@ -76,6 +78,9 @@ vec3 PointLightCalc();
 void main(void)
 {
 	vec3 colour = PointLightCalc();
+	vec2 uv = texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).rg;
+	if(useTextures && index < 27)
+		colour *= texture(textureArray, vec3(uv, materials[index].diffuseTextureID)).xyz;
 
 	reflected_light = colour;
 }
@@ -103,7 +108,7 @@ Also call the specular for that light and add it to the diffuse value
 */
 vec3 DiffuseLight(vec3 lightPosition, vec3 lightIntensity, float attenuation)
 {
-	index = int(texelFetch(sampler_world_position, ivec2(gl_FragCoord.xy)).a);
+	index = int(texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).b);
 	vec3 texel_M = materials[index].diffuseColour;
 	vec3 texel_N = texelFetch(sampler_world_normal, ivec2(gl_FragCoord.xy)).rgb;
 	vertexPos = texelFetch(sampler_world_position, ivec2(gl_FragCoord.xy)).rgb;

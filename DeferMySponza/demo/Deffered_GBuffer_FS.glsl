@@ -1,8 +1,8 @@
-#version 330
+#version 440
 
-layout (location = 0) out vec4 gbufferTexture0;
-layout (location = 1) out vec4 gbufferTexture1;
-layout (location = 2) out vec4 gbufferTexture2;
+layout (location = 0) out vec3 gbufferTexture0;
+layout (location = 1) out vec3 gbufferTexture1;
+layout (location = 2) out vec3 gbufferTexture2;
 
 
 in vec3 vertexPos;
@@ -16,7 +16,7 @@ flat in int vert_diffuse_texture_ID;
 
 void main(void)
 {
-	gbufferTexture0 = vec4(vertexPos, vert_diffuse_texture_ID);
-	gbufferTexture1 = vec4(vertexNormal, 0.0);
-	gbufferTexture2 = vec4(0.0, 0.0, 0.0, 0.0);
+	gbufferTexture0 = vec3 (vertexPos);
+	gbufferTexture1 = vec3 (vertexNormal);
+	gbufferTexture2 = vec3 (text_coord, vert_diffuse_texture_ID);
 }

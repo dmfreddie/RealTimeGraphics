@@ -28,6 +28,16 @@ void MyView::Stop(tygra::Window * window)
 	this->windowViewDidStop(window);
 }
 
+void MyView::UseTextures(const bool useTextures_)
+{
+	useTextures = useTextures_;
+}
+
+const bool MyView::UseTextures() const
+{
+	return useTextures;
+}
+
 void MyView::windowViewWillStart(tygra::Window * window)
 {
     assert(scene_ != nullptr);
@@ -147,16 +157,42 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	ambientLightShader->Bind();
 	ambientLightShader->GetUniformLocation("projection_view");
 	ambientLightShader->Unbind();
-	//ambientLightShader.GetUniformLocation("useTextures");
-	//pointLightShader.GetUniformLocation("projection_view");
-	//pointLightShader.GetUniformLocation("useTextures");
 #pragma endregion
+
+#pragma region TextureArrays
+
+	std::vector<std::string> diffuseTextureNames;
+
+	
+	diffuseTextureNames.push_back("content:///vase_dif.png");			// 0
+	diffuseTextureNames.push_back("content:///Hook.png");				// 1
+	diffuseTextureNames.push_back("content:///sponza_thorn_diff.png");	// 2
+	diffuseTextureNames.push_back("content:///lion.png");				// 3
+	diffuseTextureNames.push_back("content:///vase_round.png");			// 4
+	diffuseTextureNames.push_back("content:///background.png");			// 5
+	diffuseTextureNames.push_back("content:///flagPole.png");			// 6
+	diffuseTextureNames.push_back("content:///spnza_bricks_a_diff.png");// 7
+	diffuseTextureNames.push_back("content:///sponza_floor_a_diff.png");// 8
+	diffuseTextureNames.push_back("content:///sponza_fabric_green_diff.png");// 9
+	diffuseTextureNames.push_back("content:///sponza_roof_diff.png");	// 10
+	diffuseTextureNames.push_back("content:///sponza_flagpole_diff.png");// 11
+	diffuseTextureNames.push_back("content:///chain_texture.png");		// 12
+	diffuseTextureNames.push_back("content:///sponza_curtain_diff.png");// 13
+
+	LoadTextureArray(diffuseTextureNames, ambientLightShader, diffuse_texture_array_handle, "textureArray");
+	SetFromExisteingTextureArray(diffuse_texture_array_handle, directionalLightShader, "textureArray");
+	SetFromExisteingTextureArray(diffuse_texture_array_handle, pointLightShader, "textureArray");
+	SetFromExisteingTextureArray(diffuse_texture_array_handle, spotlightShader, "textureArray");
+#pragma endregion 
 
 #pragma region Load the mesh into buffers
 	scene::GeometryBuilder builder;
 	std::vector<Vertex> vertices_;
 	std::vector<unsigned int> elements;
 	std::vector<Material> materials;
+	
+	
+
 	const auto& scene_meshes = builder.getAllMeshes();
 	for (const auto& scene_mesh : scene_meshes) {
 
@@ -218,6 +254,37 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		materialIDCount++;
 
 	}
+
+	// Set the materials diffuse texture id to the corresponsing texture
+	materialData.materials[0].diffuseTextureID = 0;
+	materialData.materials[1].diffuseTextureID = 1;
+	materialData.materials[2].diffuseTextureID = 2;
+	materialData.materials[3].diffuseTextureID = 3;
+	materialData.materials[4].diffuseTextureID = 4;
+	materialData.materials[5].diffuseTextureID = 2;
+	materialData.materials[6].diffuseTextureID = 5;
+	materialData.materials[7].diffuseTextureID = 6;
+	materialData.materials[8].diffuseTextureID = 2;
+	materialData.materials[9].diffuseTextureID = 7;
+	
+	materialData.materials[10].diffuseTextureID = 2;
+	materialData.materials[11].diffuseTextureID = 8;
+	materialData.materials[12].diffuseTextureID = 9;
+	materialData.materials[13].diffuseTextureID = 10;
+	materialData.materials[14].diffuseTextureID = 11;
+	materialData.materials[15].diffuseTextureID = 2;
+	materialData.materials[16].diffuseTextureID = 7;
+	materialData.materials[17].diffuseTextureID = 7;
+	materialData.materials[18].diffuseTextureID = 2;
+	materialData.materials[19].diffuseTextureID = 12;
+	
+	materialData.materials[20].diffuseTextureID = 4;
+	materialData.materials[21].diffuseTextureID = 2;
+	materialData.materials[22].diffuseTextureID = 2;
+	materialData.materials[23].diffuseTextureID = 2;
+	materialData.materials[24].diffuseTextureID = 13;
+	materialData.materials[25].diffuseTextureID = 10;
+	materialData.materials[26].diffuseTextureID = 2;
 
 	err = glGetError();
 	if (err != GL_NO_ERROR)
@@ -479,6 +546,55 @@ void MyView::windowViewWillStart(tygra::Window * window)
 #pragma endregion 
 }
 
+
+void MyView::LoadTextureArray(std::vector<std::string>& textureNames, Shader* shader, GLuint& textureArrayHandle, const char* samplerHandle)
+{
+	shader->Bind();
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glGenTextures(1, &textureArrayHandle);
+	glActiveTexture(GL_TEXTURE3);
+
+	glBindTexture(GL_TEXTURE_2D_ARRAY, textureArrayHandle);
+	auto textureArrayLocation = shader->GetUniformLocation(samplerHandle);
+	glUniform1i(textureArrayLocation, 3);
+
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	glTexStorage3D(GL_TEXTURE_2D_ARRAY, 11, GL_RGBA8, 1024, 1024, (int)textureNames.size());
+	GLenum pixel_formats[] = { 0, GL_RED, GL_RG, GL_RGB, GL_RGBA };
+	for (unsigned int i = 0; i < textureNames.size(); ++i)
+	{
+		tygra::Image texture_image = tygra::createImageFromPngFile(textureNames[i]);
+
+		//Specify i-essim image
+		glTexSubImage3D(GL_TEXTURE_2D_ARRAY,
+			0,                     //Mipmap number
+			0, 0, i,                 //xoffset, yoffset, zoffset
+			1024, 1024, 1,                 //width, height, depth
+			pixel_formats[texture_image.componentsPerPixel()],                //format
+			texture_image.bytesPerComponent() == 1 ? GL_UNSIGNED_BYTE : GL_UNSIGNED_SHORT,      //type
+			texture_image.pixelData());                //pointer to data
+		glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+		GLenum err = glGetError();
+		if (err != GL_NO_ERROR)
+			std::cerr << err << std::endl;
+	}
+	shader->Unbind();
+}
+
+void MyView::SetFromExisteingTextureArray(GLuint& textureArrayHandle, Shader* shader, const char* samplerHandle)
+{
+	shader->Bind();
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, textureArrayHandle);
+	auto textureArrayLocation = shader->GetUniformLocation(samplerHandle);
+	glUniform1i(textureArrayLocation, 3);
+	shader->Unbind();
+}
+
 void MyView::windowViewDidReset(tygra::Window * window,
                                 int width,
                                 int height)
@@ -490,19 +606,19 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	*           and attach them to framebuffer objects.
 	*/
 	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_position_tex_);
-	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGBA32F, width, height, 0, GL_RGB, GL_FLOAT, nullptr);
+	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGB32F, width, height, 0, GL_RGB, GL_FLOAT, nullptr);
 	glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glBindTexture(GL_TEXTURE_RECTANGLE, 0);
 
 	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_normal_tex_);
-	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGBA32F, width, height, 0, GL_RGB, GL_FLOAT, nullptr);
+	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGB32F, width, height, 0, GL_RGB, GL_FLOAT, nullptr);
 	glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glBindTexture(GL_TEXTURE_RECTANGLE, 0);
 
 	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_material_tex_);
-	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGBA32F, width, height, 0, GL_RGB, GL_FLOAT, nullptr);
+	glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGB32F, width, height, 0, GL_RGB, GL_FLOAT, nullptr);
 	glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glBindTexture(GL_TEXTURE_RECTANGLE, 0);
@@ -546,6 +662,17 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_material_tex_);
 	glUniform1i(glGetUniformLocation(pointLightShader->GetShaderID(), "sampler_world_material"), 2);
 	pointLightShader->Unbind();
+	spotlightShader->Bind();
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_position_tex_);
+	glUniform1i(glGetUniformLocation(spotlightShader->GetShaderID(), "sampler_world_position"), 0);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_normal_tex_);
+	glUniform1i(glGetUniformLocation(spotlightShader->GetShaderID(), "sampler_world_normal"), 1);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_material_tex_);
+	glUniform1i(glGetUniformLocation(spotlightShader->GetShaderID(), "sampler_world_material"), 2);
+	spotlightShader->Unbind();
 	// --------------------------
 
 	GLenum framebuffer_status = 0;
@@ -677,8 +804,11 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LEQUAL);
-	/*glEnable(GL_STENCIL_TEST);
-	glStencilMask(0xFF);*/
+
+	glEnable(GL_STENCIL_TEST);
+	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+	glStencilFunc(GL_ALWAYS, 1, 0xFF);
+	glStencilMask(0xFF);
 
 #pragma region Draw call for rendering normal sponza
 	gbufferShadr->Bind(); 
@@ -697,18 +827,22 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	// --------------------------------------------------------- LIGHTING -----------------------------------------------------------
 
+	
 
 	glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
 
-	/*glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 	glStencilFunc(GL_EQUAL, 1, 0xFF);
-	glStencilMask(0xFF);*/
+	glStencilMask(0xFF);
 
 	glBindBuffer(GL_UNIFORM_BUFFER, materialDataUBO);
 	glBindVertexArray(light_quad_mesh_.vao);
 	
 	
 	ambientLightShader->Bind();
+	ambientLightShader->SetUniformIntValue("useTextures", useTextures);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 	ambientLightShader->Unbind();
 	
@@ -722,6 +856,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	glDepthMask(GL_FALSE);
 
 	directionalLightShader->Bind();
+	directionalLightShader->SetUniformIntValue("useTextures", useTextures);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 	directionalLightShader->Unbind();
 	
@@ -735,7 +870,7 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	pointLightShader->Bind();
 	pointLightShader->SetUniformMatrix4FValue("projection_view", projection_view);
-
+	pointLightShader->SetUniformIntValue("useTextures", useTextures);
 	for (int i = 0; i < pointLights.size(); ++i)
 	{
 		glm::mat4 model_matrix = glm::mat4(1);
@@ -756,6 +891,7 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	spotlightShader->Bind();
 	spotlightShader->SetUniformMatrix4FValue("projection_view", projection_view);
+	spotlightShader->SetUniformIntValue("useTextures", useTextures);
 
 	for (int i = 0; i < spotlightRef.size(); ++i)
 	{
@@ -778,7 +914,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	glCullFace(GL_BACK);
 
 	
-	//glDisable(GL_STENCIL_TEST);
+	glDisable(GL_STENCIL_TEST);
 	glDepthMask(GL_TRUE);
 	glDisable(GL_BLEND);
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, lbuffer_fbo_);

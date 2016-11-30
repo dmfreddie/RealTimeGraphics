@@ -105,6 +105,8 @@ public:
     void setScene(const scene::Context * scene);
 
 	void Stop(tygra::Window* window);
+	void UseTextures(const bool useTextures_);
+	const bool UseTextures() const;
 private:
 
     void windowViewWillStart(tygra::Window * window) override;
@@ -116,7 +118,8 @@ private:
     void windowViewDidStop(tygra::Window * window) override;
 
     void windowViewRender(tygra::Window * window) override;
-
+	void LoadTextureArray(std::vector<std::string>& textureNames, Shader* shader, GLuint& textureArrayHandle, const char* samplerHandle);
+	void SetFromExisteingTextureArray(GLuint& textureArrayHandle, Shader* shader, const char* samplerHandle);
     const scene::Context * scene_;
 	DrawElementsIndirectCommand commands[30];
 	std::map<scene::MeshId, MeshGL> meshes_;
@@ -165,4 +168,8 @@ private:
 
 	MaterialDataBlock materialData;
 	GLuint materialDataUBO;
+
+
+	GLuint diffuse_texture_array_handle;
+	bool useTextures = false;
 };

@@ -3,6 +3,7 @@
 layout (location = 0) uniform sampler2DRect sampler_world_position;
 layout (location = 1) uniform sampler2DRect sampler_world_normal;
 layout (location = 2) uniform sampler2DRect sampler_world_material;
+layout (location = 3) uniform sampler2DArray textureArray;
 
 struct DirectionalLight
 {
@@ -67,25 +68,31 @@ layout (location = 0) out vec3 reflected_light;
 int index = 0;
 vec3 vertexPos;
 vec3 vertexNormal;
+uniform bool useTextures;
 
 vec3 DirLightCalc(vec3 colour);
 vec3 SpecularLight(vec3 LVector, vec3 diffuse_intensity);
 
 void main(void)
 {
-	
+	vec2 uv = texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).rg;
 	vec3 final_colour = DirLightCalc(vec3(0, 0, 0));
+
+	if(useTextures && index < 27)
+		final_colour *= texture(textureArray, vec3(uv, materials[index].diffuseTextureID)).xyz;
+
 	reflected_light = final_colour;
 }
 
 
 vec3 DirLightCalc(vec3 colour)
 {
-	index = int(texelFetch(sampler_world_position, ivec2(gl_FragCoord.xy)).a);
+	index = int(texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).b);
 	vec3 texel_M = materials[index].diffuseColour;
 	vec3 texel_N = texelFetch(sampler_world_normal, ivec2(gl_FragCoord.xy)).rgb;
 	vertexPos = texelFetch(sampler_world_position, ivec2(gl_FragCoord.xy)).rgb;
 	vertexNormal = normalize(texel_N);
+	
 
 	for (int i = 0; i < maxDirectionalLights; i++)
 	{
@@ -100,6 +107,8 @@ vec3 DirLightCalc(vec3 colour)
 		else
 			colour += diffuseIntensity * texel_M;
 	}
+
+	
 
 	return colour;
 }
