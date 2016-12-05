@@ -133,8 +133,8 @@ void Shader::shader_include(std::string& shader)
 
 	while ((start_pos = shader.find(include_dir, start_pos)) != std::string::npos)
 	{
-		int pos = start_pos + include_dir.length() + 1;
-		int length = shader.find("\"", pos);
+		int pos = (int)(start_pos + include_dir.length() + 1);
+		int length = (int)shader.find("\"", pos);
 		std::string file = shader.substr(pos, length - pos);
 		std::string content = "";
 

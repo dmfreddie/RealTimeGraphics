@@ -11,6 +11,12 @@
 #include "Shader.h"
 #include <map>
 
+
+#define AREATEX_WIDTH 160
+#define AREATEX_HEIGHT 560
+#define SEARCHTEX_WIDTH 66
+#define SEARCHTEX_HEIGHT 33
+
 struct DrawElementsIndirectCommand
 {
 	GLuint vertexCount;
@@ -120,6 +126,9 @@ private:
     void windowViewRender(tygra::Window * window) override;
 	void LoadTextureArray(std::vector<std::string>& textureNames, Shader* shader, GLuint& textureArrayHandle, const char* samplerHandle);
 	void SetFromExisteingTextureArray(GLuint& textureArrayHandle, Shader* shader, const char* samplerHandle);
+
+	bool CheckError();
+
     const scene::Context * scene_;
 	DrawElementsIndirectCommand commands[30];
 	std::map<scene::MeshId, MeshGL> meshes_;
@@ -153,14 +162,26 @@ private:
 	GLuint gbuffer_material_tex_{ 0 };
 
 	GLuint gbuffer_fbo_{ 0 };
-	GLuint gbuffer_colour_rbo_{ 0 };
 
 	GLuint lbuffer_fbo_{ 0 };
 	GLuint lbuffer_colour_rbo_{ 0 };
+
+	GLuint albedo_tex;
+	GLuint edge_tex;
+	GLuint blend_tex;
+	GLuint area_tex;
+	GLuint search_tex;
+
+	GLuint albedo_fbo;
+	GLuint albedo_rbo;
+	GLuint edge_fbo;
+	GLuint edge_rbo;
+	GLuint blend_fbo;
+	GLuint blend_rbo;
 #pragma endregion 
 
 #pragma  region Shaders
-	Shader *gbufferShadr, *ambientLightShader, *pointLightShader, *directionalLightShader, *spotlightShader;
+	Shader *gbufferShadr, *ambientLightShader, *pointLightShader, *directionalLightShader, *spotlightShader, *edge_shader, *blend_shader, *neighborhood_shader;
 #pragma endregion 
 
 	DataBlock lightingData; 
@@ -172,4 +193,6 @@ private:
 
 	GLuint diffuse_texture_array_handle;
 	bool useTextures = false;
+
+	bool enableSMAA = true;
 };
