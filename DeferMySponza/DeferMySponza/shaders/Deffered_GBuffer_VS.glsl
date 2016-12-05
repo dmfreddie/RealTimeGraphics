@@ -18,13 +18,13 @@ out vec2 text_coord;
 out vec3 vert_diffuse_colour;
 out vec3 vert_specular_colour;
 out float vert_is_vertex_shiney;
-out float vert_diffuse_texture_ID;
+flat out int vert_diffuse_texture_ID;
 
 void main(void)
 {
 	//Convert the noormals and positions into world space
 	vertexNormal = normalize(mat3(model_matrix) *  vertex_normal);
-	vertexPos = mat3(model_matrix) * vertex_position;
+	vertexPos = (mat4x3(model_matrix) * vec4(vertex_position, 1.0)).xyz;
 
 	vert_diffuse_colour = vertex_diffuse_colour;
 	vert_specular_colour = vertex_specular_colour;

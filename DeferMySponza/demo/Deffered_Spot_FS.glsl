@@ -3,6 +3,7 @@
 layout (location = 0) uniform sampler2DRect sampler_world_position;
 layout (location = 1) uniform sampler2DRect sampler_world_normal;
 layout (location = 2) uniform sampler2DRect sampler_world_material;
+layout (location = 3) uniform sampler2DArray textureArray;
 
 uniform int currentSpotLight;
 
@@ -51,22 +52,44 @@ layout(std140) uniform DataBlock
 	float maxSpotlights;
 };
 
+struct Material
+{
+	vec3 diffuseColour;
+	float vertexShineyness;
+	vec3 specularColour;
+	int diffuseTextureID;
+};
+
+layout(std140) uniform MaterialDataBlock
+{
+	Material materials[30];
+};
+
 out vec3 reflected_light;
 
-
+vec3 SpecularLight(vec3 LVector, vec3 diffuse_intensity);
 vec3 DiffuseLight(vec3 lightPosition, vec3 lightIntensity, float attenuation);
 vec3 SpotLightCalc(vec3 colour);
 
 vec3 vertexPos = vec3(0,0,0);
 vec3 vertexNormal = vec3(0,0,0);
+int index = 0;
+uniform bool useTextures;
+
 
 void main(void)
 {
 	vec3 texel_N = texelFetch(sampler_world_normal, ivec2(gl_FragCoord.xy)).rgb;
 	vertexPos = texelFetch(sampler_world_position, ivec2(gl_FragCoord.xy)).rgb;
+	index = int(texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).b);
 	vertexNormal = normalize(texel_N);
 
 	vec3 final_colour = SpotLightCalc(vec3(0,0,0));
+
+	vec2 uv = texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).rg;
+	if(useTextures && index < 27)
+		final_colour *= texture(textureArray, vec3(uv, materials[index].diffuseTextureID)).xyz;
+
 	reflected_light = final_colour;
 }
 
@@ -80,16 +103,21 @@ Also call the specular for that light and add it to the diffuse value
 */
 vec3 DiffuseLight(vec3 lightPosition, vec3 lightIntensity, float attenuation)
 {
+	
+	vec3 texel_M = materials[index].diffuseColour;
 	vec3 L = normalize(lightPosition - vertexPos);
 	float scaler = max(0, dot(L, normalize(vertexNormal))) * attenuation;
 
 	if (scaler == 0)
 		return vec3(0, 0, 0);
 
-	vec3 diffuse_intensity = lightIntensity * scaler;
+	vec3 diffuse_intensity = lightIntensity * scaler * texel_M;
+	
+	if (materials[index].vertexShineyness > 0)
+		return  diffuse_intensity + SpecularLight(L, diffuse_intensity);
+	else
+		return  diffuse_intensity;
 
-
-	return  diffuse_intensity;
 }
 
 vec3 SpotLightCalc(vec3 colour)
@@ -115,4 +143,27 @@ vec3 SpotLightCalc(vec3 colour)
 	
 
 	return colour;
+}
+
+/*
+Calculate the diffuse light for the point light and apply the diffuse texture.
+Also call the specular for that light and add it to the diffuse value
+@param lVector - the direction of the light for angular calculations
+@param attenuation - the diffuse colour that needs to be used in the specular colour
+@return specular_intensity - the end result of the specular calculations from the individual lights
+*/
+vec3 SpecularLight(vec3 LVector, vec3 diffuse_intensity)
+{
+	vec3 lightReflection = normalize(reflect(-LVector, normalize(vertexNormal)));
+	vec3 vertexToEye = normalize(cameraPosition - vertexPos);
+	float specularFactor = max(0.0, dot(vertexToEye, lightReflection));
+
+	if (specularFactor > 0)
+	{
+		vec3 specularIntensity = diffuse_intensity * pow(specularFactor, materials[index].vertexShineyness);
+		//if(useTextures)
+		//	specularIntensity *= texture2DArray(specularTextureArray, vec3(text_coord, vert_diffuse_texture_ID)).rgb;
+		return materials[index].specularColour * specularIntensity;
+	}
+	return vec3(0, 0, 0);
 }

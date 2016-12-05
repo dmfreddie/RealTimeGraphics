@@ -30,7 +30,9 @@ void MyController::windowControlWillStart(tygra::Window * window)
     window->setView(view_);
     window->setTitle("Real-Time Graphics :: DeferMySponza");
     std::cout << "Real-Time Graphics :: DeferMySponza" << std::endl;
+    std::cout << "P4011584 - Frederic Babord" << std::endl;
     std::cout << "Press Esc to quit the demo" << std::endl;
+	std::cout << "Press F1 to toggle textures" << std::endl;
 	std::cout << "Press F2 to toggle an animated camera" << std::endl;
 }
 
@@ -110,7 +112,7 @@ void MyController::windowControlKeyboardChanged(tygra::Window * window,
     switch (key_index)
     {
 	case tygra::kWindowKeyF1:
-		view_->ToggleSMAA();
+		view_->UseTextures(!view_->UseTextures());
 		break;
     case tygra::kWindowKeyF2:
         scene_->toggleCameraAnimation();
