@@ -205,7 +205,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 		bool hasTexCood = text_coord.size() > 0;
 
-		newMesh.first_vertex_index = vertices_.size();
+		newMesh.first_vertex_index = (GLuint)vertices_.size();
 		vertices_.reserve(vertices_.size() + positions.size());
 
 		for (unsigned int i = 0; i < positions.size(); ++i)
@@ -218,9 +218,9 @@ void MyView::windowViewWillStart(tygra::Window * window)
 			vertices_.push_back(vertex);
 		}
 
-		newMesh.first_element_index = elements.size();
+		newMesh.first_element_index = (GLuint)elements.size();
 		elements.insert(elements.end(), elementsArr.begin(), elementsArr.end());
-		newMesh.element_count = elementsArr.size();
+		newMesh.element_count = (GLuint)elementsArr.size();
 
 	}
 
@@ -250,7 +250,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 			materials.push_back(mat);
 		}
 		materialData.materials[materialIDCount] = materials[counter];
-		counter += instances.size();
+		counter += (int)instances.size();
 		materialIDCount++;
 
 	}
@@ -393,10 +393,10 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		const auto& mesh_ = mesh.second;
 		auto& instances = scene_->getInstancesByMeshId(mesh.first);
 
-		counter += instances.size();
+		counter += (int)instances.size();
 
 		commands[commandInt].vertexCount = mesh_.element_count;
-		commands[commandInt].instanceCount = instances.size(); // Just testing with 1 instance, ATM.
+		commands[commandInt].instanceCount = (int)instances.size(); // Just testing with 1 instance, ATM.
 		commands[commandInt].firstVertex = mesh_.first_element_index;// +sizeof(GLuint);
 		commands[commandInt].baseVertex = mesh_.first_vertex_index;
 		commands[commandInt].baseInstance = baseInstance; // Shouldn't impact testing?
@@ -447,7 +447,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		light.padding = 0.0f;
 		lightingData.pointLight[i] = light;
 	}
-	lightingData.maxPointLights = pointLightsRef.size();
+	lightingData.maxPointLights = (float)pointLightsRef.size();
 
 
 	auto& directionalLightRef = scene_->getAllDirectionalLights();
@@ -460,7 +460,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		light.padding2 = 0.0f;
 		lightingData.directionalLight[i] = light;
 	}
-	lightingData.maxDirectionalLights = directionalLightRef.size();
+	lightingData.maxDirectionalLights = (float)directionalLightRef.size();
 
 	auto& spotlightRef = scene_->getAllSpotLights();
 	for (unsigned int i = 0; i < spotlightRef.size(); ++i)
@@ -475,7 +475,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 		lightingData.spotLight[i] = light;
 	}
-	lightingData.maxDirectionalLights = directionalLightRef.size();
+	lightingData.maxDirectionalLights = (float)directionalLightRef.size();
 
 	err = glGetError();
 	if (err != GL_NO_ERROR)
@@ -629,50 +629,22 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glBindTexture(GL_TEXTURE_RECTANGLE, 0);
 
-	ambientLightShader->Bind();
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_position_tex_);
-	glUniform1i(glGetUniformLocation(ambientLightShader->GetShaderID(), "sampler_world_position"), 0);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_normal_tex_);
-	glUniform1i(glGetUniformLocation(ambientLightShader->GetShaderID(), "sampler_world_normal"), 1);
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_material_tex_);
-	glUniform1i(glGetUniformLocation(ambientLightShader->GetShaderID(), "sampler_world_material"), 2);
-	ambientLightShader->Unbind();
-	directionalLightShader->Bind();
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_position_tex_);
-	glUniform1i(glGetUniformLocation(directionalLightShader->GetShaderID(), "sampler_world_position"), 0);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_normal_tex_);
-	glUniform1i(glGetUniformLocation(directionalLightShader->GetShaderID(), "sampler_world_normal"), 1);
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_material_tex_);
-	glUniform1i(glGetUniformLocation(directionalLightShader->GetShaderID(), "sampler_world_material"), 2);
-	directionalLightShader->Unbind();
-	pointLightShader->Bind();
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_position_tex_);
-	glUniform1i(glGetUniformLocation(pointLightShader->GetShaderID(), "sampler_world_position"), 0);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_normal_tex_);
-	glUniform1i(glGetUniformLocation(pointLightShader->GetShaderID(), "sampler_world_normal"), 1);
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_material_tex_);
-	glUniform1i(glGetUniformLocation(pointLightShader->GetShaderID(), "sampler_world_material"), 2);
-	pointLightShader->Unbind();
-	spotlightShader->Bind();
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_position_tex_);
-	glUniform1i(glGetUniformLocation(spotlightShader->GetShaderID(), "sampler_world_position"), 0);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_normal_tex_);
-	glUniform1i(glGetUniformLocation(spotlightShader->GetShaderID(), "sampler_world_normal"), 1);
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_material_tex_);
-	glUniform1i(glGetUniformLocation(spotlightShader->GetShaderID(), "sampler_world_material"), 2);
-	spotlightShader->Unbind();
+	Shader* shaders[4] = { ambientLightShader, directionalLightShader, spotlightShader, pointLightShader };
+	for(int i = 0; i < 4; ++i)
+	{
+		shaders[i]->Bind();
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_position_tex_);
+		glUniform1i(glGetUniformLocation(shaders[i]->GetShaderID(), "sampler_world_position"), 0);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_normal_tex_);
+		glUniform1i(glGetUniformLocation(shaders[i]->GetShaderID(), "sampler_world_normal"), 1);
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_RECTANGLE, gbuffer_material_tex_);
+		glUniform1i(glGetUniformLocation(shaders[i]->GetShaderID(), "sampler_world_material"), 2);
+		shaders[i]->Unbind();
+	}
+
 	// --------------------------
 
 	GLenum framebuffer_status = 0;
@@ -794,9 +766,9 @@ void MyView::windowViewRender(tygra::Window * window)
 	}
 	
 	lightingData.cameraPosition = (const glm::vec3&)scene_->getCamera().getPosition();
-	lightingData.maxPointLights = pointLights.size();
-	lightingData.maxDirectionalLights = directionalLights.size();
-	lightingData.maxSpotlights = spotlightRef.size();
+	lightingData.maxPointLights = (float)pointLights.size();
+	lightingData.maxDirectionalLights = (float)directionalLights.size();
+	lightingData.maxSpotlights = (float)spotlightRef.size();
 	glBindBuffer(GL_UNIFORM_BUFFER, lightDataUBO);
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(DataBlock), &lightingData, GL_STREAM_DRAW);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
@@ -815,7 +787,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	glUniformMatrix4fv(glGetUniformLocation(gbufferShadr->GetShaderID(), "projection_view"), 1, GL_FALSE, glm::value_ptr(projection_view));
 
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
-	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, meshes_.size(), 0);
+	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, (GLsizei)meshes_.size(), 0);
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 
 #pragma endregion 
@@ -862,7 +834,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	
 
 	glBindVertexArray(0);	
-	
+	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
 	
 
@@ -895,12 +867,17 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	for (int i = 0; i < spotlightRef.size(); ++i)
 	{
-		glm::mat4 model_matrix = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0, 1, 0));
-		model_matrix = glm::inverse(model_matrix);
-		model_matrix = glm::translate(model_matrix, (const glm::vec3&)spotlightRef[i].getPosition());
-		model_matrix = glm::scale(model_matrix, glm::vec3(spotlightRef[i].getRange()));
+		glm::mat4 rotationMatrix = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0, 1, 0));
+		rotationMatrix = glm::inverse(rotationMatrix);
+		auto transDir = (const glm::vec3&)spotlightRef[i].getPosition();
+		transDir *= -1;
+		glm::mat4 translationMatrix = glm::mat4(1.0);
+		translationMatrix = glm::translate(translationMatrix, transDir);
+		glm::mat4 scaleMatrix = glm::mat4(1.0);
+		scaleMatrix = glm::scale(scaleMatrix, glm::vec3(spotlightRef[i].getRange()));
 		
-		
+		glm::mat4 model_matrix = glm::mat4(1.0);
+		model_matrix = translationMatrix * rotationMatrix * scaleMatrix;
 		
 		spotlightShader->SetUniformMatrix4FValue("model_matrix", model_matrix);
 		spotlightShader->SetUniformIntValue("currentSpotLight", i);
@@ -915,6 +892,7 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	
 	glDisable(GL_STENCIL_TEST);
+	glDisable(GL_CULL_FACE);
 	glDepthMask(GL_TRUE);
 	glDisable(GL_BLEND);
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, lbuffer_fbo_);
