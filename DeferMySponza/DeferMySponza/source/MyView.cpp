@@ -154,6 +154,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	directionalLightShader = new Shader("Deffered_Directional_VS.glsl", "Deffered_Directional_FS.glsl");
 	pointLightShader = new Shader("Deffered_Point_VS.glsl", "Deffered_Point_FS.glsl");
 	spotlightShader = new Shader("Deffered_Spot_VS.glsl", "Deffered_Spot_FS.glsl");
+	shadowDepth_Shader = new Shader("Deffered_Directional_Shadow_VS.glsl", "Deffered_Directional_Shadow_FS.glsl");
 	gbufferShadr->Bind();
 	gbufferShadr->GetUniformLocation("projection_view");
 	gbufferShadr->Unbind();
@@ -419,6 +420,9 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	glGenFramebuffers(1, &lbuffer_fbo_);
 	glGenRenderbuffers(1, &lbuffer_colour_rbo_);
+
+	glGenTextures(1, &shadowmap_tex);
+	glGenFramebuffers(1, &shadowMapFrameBuffer);
 #pragma endregion 
 
 	CheckError();
@@ -702,6 +706,38 @@ void MyView::windowViewDidReset(tygra::Window * window,
 
 	CheckError();
 
+#pragma region ShadowMaps
+
+	//SetPlayer : bob ToPos : (3, 4, 5) When : time > 9;
+	/*glBindTexture(GL_TEXTURE_2D, shadowmap_tex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);*/
+
+
+	glBindTexture(GL_TEXTURE_2D, shadowmap_tex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFrameBuffer);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowmap_tex, 0);
+	glDrawBuffer(GL_NONE);
+	glReadBuffer(GL_NONE);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	
+	framebuffer_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (framebuffer_status != GL_FRAMEBUFFER_COMPLETE) {
+		tglDebugMessage(GL_DEBUG_SEVERITY_HIGH_ARB, "lbuffer framebuffer not complete");
+	}
+
+#pragma endregion
+
 #pragma region SMAA
 
 	return;
@@ -848,16 +884,20 @@ void MyView::windowViewDidStop(tygra::Window * window)
 	delete directionalLightShader;
 	delete pointLightShader;
 	delete spotlightShader;
+	delete edge_shader;
+	delete blend_shader;
+	delete neighborhood_shader;
 
 	GLuint vaos[4] = { vao , light_quad_mesh_.vao, light_sphere_mesh_.vao, light_cone_mesh_.vao };
-	GLuint textures[4] = { gbuffer_position_tex_, gbuffer_normal_tex_, gbuffer_material_tex_, gbuffer_depth_tex_ }; 
-	GLuint buffer[10] = { vertex_vbo, element_vbo, instance_vbo, material_vbo, commandBuffer, lightDataUBO, lbuffer_colour_rbo_, lbuffer_fbo_, gbuffer_fbo_ };
-
+	GLuint textures[9] = { gbuffer_position_tex_, gbuffer_normal_tex_, gbuffer_material_tex_, gbuffer_depth_tex_, albedo_tex, edge_tex, blend_tex, area_tex, search_tex }; 
+	GLuint buffer[6] = { vertex_vbo, element_vbo, instance_vbo, material_vbo, commandBuffer, lightDataUBO};
+	GLuint rbos[4] = {lbuffer_colour_rbo_, edge_rbo, blend_rbo, albedo_rbo};
+	GLuint fbos[5]{lbuffer_fbo_, gbuffer_fbo_, edge_fbo, blend_fbo, albedo_fbo};
 	glDeleteVertexArrays(4, vaos);
-	glDeleteFramebuffers(1, &lbuffer_fbo_);
-	glDeleteRenderbuffers(1, &lbuffer_colour_rbo_);
-	glDeleteTextures(4, textures);
-	glDeleteBuffers(10, buffer);
+	glDeleteFramebuffers(5, fbos);
+	glDeleteRenderbuffers(4, rbos);
+	glDeleteTextures(9, textures);
+	glDeleteBuffers(6, buffer);
 }
 
 void MyView::windowViewRender(tygra::Window * window)
@@ -952,11 +992,52 @@ void MyView::windowViewRender(tygra::Window * window)
 
 #pragma endregion 
 
-	
-
 	glDisable(GL_DEPTH_TEST);
+
+
 	gbufferShadr->Unbind();
 
+	//// --------------------------------------------------------- SHADOWS -----------------------------------------------------------
+
+	//glDisable(GL_STENCIL_TEST);
+	//glEnable(GL_DEPTH_TEST);
+	//glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+	//glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFrameBuffer);
+	//glClear(GL_DEPTH_BUFFER_BIT);
+
+	//glm::mat4 lightProjection = glm::ortho(-200.0f, 200.0f, -200.0f, 200.0f, -200.0f, 200.0f);
+	//glm::mat4 lightPresPorojection =  glm::perspective(glm::radians(spotlightRef[0].getConeAngleDegrees()), (float)(SHADOW_WIDTH/ SHADOW_HEIGHT), 1.f, 1000.f);
+	//glm::mat4 lightViewMat = glm::lookAt((const glm::vec3&)directionalLights[0].getDirection(), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+	////glm::mat4 lightViewMat = glm::lookAt((const glm::vec3&)spotlightRef[0].getDirection(), (const glm::vec3&)spotlightRef[0].getPosition(), glm::vec3(0, 1, 0));
+	//
+	//glm::mat4 rotationMatrix = glm::lookAt((const glm::vec3&)spotlightRef[0].getPosition(), (const glm::vec3&)spotlightRef[0].getPosition() + (const glm::vec3&)spotlightRef[0].getDirection(), glm::vec3(0, 1, 0));
+	//rotationMatrix = glm::inverse(rotationMatrix);
+	//auto transDir = (const glm::vec3&)spotlightRef[0].getPosition();
+	//transDir *= -1;
+	//glm::mat4 translationMatrix = glm::mat4(1.0);
+	//translationMatrix = glm::translate(translationMatrix, transDir);
+	//glm::mat4 scaleMatrix = glm::mat4(1.0);
+	//scaleMatrix = glm::scale(scaleMatrix, glm::vec3(spotlightRef[0].getRange()));
+
+	//glm::mat4 model_matrix = glm::mat4(1.0);
+	//model_matrix = translationMatrix * rotationMatrix * scaleMatrix;
+
+	//glm::mat4 lightSpaceMatrix = lightPresPorojection * model_matrix;
+	//
+	//shadowDepth_Shader->Bind();
+
+	//shadowDepth_Shader->SetUniformMatrix4FValue("lightSpaceMatrix", lightSpaceMatrix);
+
+	//glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
+	//glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, (GLsizei)meshes_.size(), 0);
+	//glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+
+	//shadowDepth_Shader->Unbind();
+	//
+	//glViewport(0, 0, viewport_size[2], viewport_size[3]);
+
+	//glDisable(GL_DEPTH_TEST);
+	//// --------------------------------------------------------- SHADOWS -----------------------------------------------------------
 	// --------------------------------------------------------- LIGHTING -----------------------------------------------------------
 
 	
@@ -964,7 +1045,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
 
 	glClear(GL_COLOR_BUFFER_BIT);
-
+	glEnable(GL_STENCIL_TEST);
 	glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
 	glStencilFunc(GL_EQUAL, 1, 0xFF);
 	glStencilMask(0xFF);
@@ -1027,6 +1108,8 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	for (int i = 0; i < spotlightRef.size(); ++i)
 	{
+		
+
 		glm::mat4 rotationMatrix = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0, 1, 0));
 		rotationMatrix = glm::inverse(rotationMatrix);
 		auto transDir = (const glm::vec3&)spotlightRef[i].getPosition();
@@ -1039,6 +1122,39 @@ void MyView::windowViewRender(tygra::Window * window)
 		glm::mat4 model_matrix = glm::mat4(1.0);
 		model_matrix = translationMatrix * rotationMatrix * scaleMatrix;
 		
+		
+		// --------------------------------------------------------- SHADOWS -----------------------------------------------------------
+
+		glDisable(GL_STENCIL_TEST);
+		glEnable(GL_DEPTH_TEST);
+		glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+		glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFrameBuffer);
+		glClear(GL_DEPTH_BUFFER_BIT);
+
+		glm::mat4 lightPresPorojection = glm::perspective(glm::radians(spotlightRef[i].getConeAngleDegrees()), (float)(SHADOW_WIDTH / SHADOW_HEIGHT), 1.f, 1000.f);
+
+
+		glm::mat4 lightSpaceMatrix = lightPresPorojection * model_matrix;
+
+		shadowDepth_Shader->Bind();
+
+		shadowDepth_Shader->SetUniformMatrix4FValue("lightSpaceMatrix", lightSpaceMatrix);
+
+		// No model data?
+
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
+		glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, (GLsizei)meshes_.size(), 0);
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+
+		shadowDepth_Shader->Unbind();
+
+		glViewport(0, 0, viewport_size[2], viewport_size[3]);
+
+		glDisable(GL_DEPTH_TEST);
+		glEnable(GL_STENCIL_TEST);
+		// --------------------------------------------------------- SHADOWS -----------------------------------------------------------
+		glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
+		spotlightShader->Bind();
 		spotlightShader->SetUniformMatrix4FValue("model_matrix", model_matrix);
 		spotlightShader->SetUniformIntValue("currentSpotLight", i);
 		glDrawElements(GL_TRIANGLES, light_cone_mesh_.element_count, GL_UNSIGNED_INT, nullptr);

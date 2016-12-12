@@ -4,6 +4,7 @@ layout (location = 0) uniform sampler2DRect sampler_world_position;
 layout (location = 1) uniform sampler2DRect sampler_world_normal;
 layout (location = 2) uniform sampler2DRect sampler_world_material;
 layout (location = 3) uniform sampler2DArray textureArray;
+uniform sampler2D shadowMap;
 
 uniform int currentSpotLight;
 
@@ -70,12 +71,14 @@ out vec3 reflected_light;
 vec3 SpecularLight(vec3 LVector, vec3 diffuse_intensity);
 vec3 DiffuseLight(vec3 lightPosition, vec3 lightIntensity, float attenuation);
 vec3 SpotLightCalc(vec3 colour);
+float ShadowCalculation(vec4 fragPosLightSpace);
 
 vec3 vertexPos = vec3(0,0,0);
 vec3 vertexNormal = vec3(0,0,0);
 int index = 0;
 uniform bool useTextures;
-
+uniform mat4 lightSpaceMatrix;
+vec4 fraglightspacePos;
 
 void main(void)
 {
@@ -83,14 +86,32 @@ void main(void)
 	vertexPos = texelFetch(sampler_world_position, ivec2(gl_FragCoord.xy)).rgb;
 	index = int(texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).b);
 	vertexNormal = normalize(texel_N);
+	
+	fraglightspacePos = lightSpaceMatrix * vec4(vertexPos, 1.0f);
 
 	vec3 final_colour = SpotLightCalc(vec3(0,0,0));
 
 	vec2 uv = texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).rg;
+
 	if(useTextures && index < 27)
 		final_colour *= texture(textureArray, vec3(uv, materials[index].diffuseTextureID)).xyz;
 
 	reflected_light = final_colour;
+}
+
+
+float ShadowCalculation(vec4 fragPosLightSpace)
+{
+	// perform perspective divide
+	vec3 projCoords = fraglightspacePos.xyz / fraglightspacePos.w;
+	projCoords = projCoords * 0.5 + 0.5;
+	float closestDepth = texture(shadowMap, projCoords.xy).r;
+	// Get depth of current fragment from light's perspective
+	float currentDepth = projCoords.z;
+	// Check whether current frag pos is in shadow
+	float shadow = currentDepth > closestDepth ? 1.0 : 0.0;
+	
+	return shadow;
 }
 
 
@@ -113,8 +134,10 @@ vec3 DiffuseLight(vec3 lightPosition, vec3 lightIntensity, float attenuation)
 
 	vec3 diffuse_intensity = lightIntensity * scaler * texel_M;
 	
+	float shadow = ShadowCalculation(fraglightspacePos);
+
 	if (materials[index].vertexShineyness > 0)
-		return  diffuse_intensity + SpecularLight(L, diffuse_intensity);
+		return  diffuse_intensity + (1.0 - shadow) + SpecularLight(L, diffuse_intensity);
 	else
 		return  diffuse_intensity;
 
@@ -134,6 +157,8 @@ vec3 SpotLightCalc(vec3 colour)
 	float attenuation = 1 - smoothstep(0.0, spot.range, dist);
 	// Compute height attenuation based on distance from earlier.
 	//float attenuation = smoothstep(spot.range, 0.0f, length(spot.position - vertexPos));
+	
+	
 
 	vec3 diffuse_intensity = DiffuseLight(spot.position, spot.intensity, attenuation);
 				

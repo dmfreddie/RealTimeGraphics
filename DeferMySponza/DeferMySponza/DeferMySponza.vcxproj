@@ -334,6 +334,8 @@
     <None Include="shaders\Deffered_Ambient_FS.glsl" />
     <None Include="shaders\Deffered_Ambient_VS.glsl" />
     <None Include="shaders\Deffered_Directional_FS.glsl" />
+    <None Include="shaders\Deffered_Directional_Shadow_FS.glsl" />
+    <None Include="shaders\Deffered_Directional_Shadow_VS.glsl" />
     <None Include="shaders\Deffered_Directional_VS.glsl" />
     <None Include="shaders\Deffered_GBuffer_FS.glsl" />
     <None Include="shaders\Deffered_GBuffer_VS.glsl" />

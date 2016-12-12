@@ -166,6 +166,9 @@ private:
 	GLuint lbuffer_fbo_{ 0 };
 	GLuint lbuffer_colour_rbo_{ 0 };
 
+	GLuint shadowMapFrameBuffer{ 0 };
+	GLuint shadowmap_tex;
+
 	GLuint albedo_tex;
 	GLuint edge_tex;
 	GLuint blend_tex;
@@ -181,7 +184,7 @@ private:
 #pragma endregion 
 
 #pragma  region Shaders
-	Shader *gbufferShadr, *ambientLightShader, *pointLightShader, *directionalLightShader, *spotlightShader, *edge_shader, *blend_shader, *neighborhood_shader;
+	Shader *gbufferShadr, *ambientLightShader, *pointLightShader, *directionalLightShader, *spotlightShader, *edge_shader, *blend_shader, *neighborhood_shader, *shadowDepth_Shader;
 #pragma endregion 
 
 	DataBlock lightingData; 
@@ -195,4 +198,6 @@ private:
 	bool useTextures = false;
 
 	bool enableSMAA = true;
+
+	const GLuint SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
 };
