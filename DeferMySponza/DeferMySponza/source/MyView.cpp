@@ -1123,42 +1123,58 @@ void MyView::windowViewRender(tygra::Window * window)
 		model_matrix = translationMatrix * rotationMatrix * scaleMatrix;
 		
 		
-		// --------------------------------------------------------- SHADOWS -----------------------------------------------------------
+		
 
-		glDisable(GL_STENCIL_TEST);
-		glEnable(GL_DEPTH_TEST);
-		glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-		glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFrameBuffer);
-		glClear(GL_DEPTH_BUFFER_BIT);
-
-		glm::mat4 lightPresPorojection = glm::perspective(glm::radians(spotlightRef[i].getConeAngleDegrees()), (float)(SHADOW_WIDTH / SHADOW_HEIGHT), 1.f, 1000.f);
-
-
-		glm::mat4 lightSpaceMatrix = lightPresPorojection * model_matrix;
-
-		shadowDepth_Shader->Bind();
-
-		shadowDepth_Shader->SetUniformMatrix4FValue("lightSpaceMatrix", lightSpaceMatrix);
-
-		// No model data?
-
-		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
-		glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, (GLsizei)meshes_.size(), 0);
-		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
-
-		shadowDepth_Shader->Unbind();
-
-		glViewport(0, 0, viewport_size[2], viewport_size[3]);
-
-		glDisable(GL_DEPTH_TEST);
-		glEnable(GL_STENCIL_TEST);
-		// --------------------------------------------------------- SHADOWS -----------------------------------------------------------
 		glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
 		spotlightShader->Bind();
 		spotlightShader->SetUniformMatrix4FValue("model_matrix", model_matrix);
 		spotlightShader->SetUniformIntValue("currentSpotLight", i);
 		glDrawElements(GL_TRIANGLES, light_cone_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
 	}
+
+	// --------------------------------------------------------- SHADOWS -----------------------------------------------------------
+
+	glDisable(GL_STENCIL_TEST);
+	glEnable(GL_DEPTH_TEST);
+	glDisable(GL_CULL_FACE);
+	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+	glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFrameBuffer);
+	glClear(GL_DEPTH_BUFFER_BIT);
+
+	glm::mat4 lightProjection = glm::ortho(-200.0f, 200.0f, -200.0f, 200.0f, -200.0f, 200.0f);
+	//glm::mat4 lightPresPorojection =  glm::perspective(glm::radians(spotlightRef[0].getConeAngleDegrees()), (float)(SHADOW_WIDTH/ SHADOW_HEIGHT), 1.f, 1000.f);
+	glm::mat4 lightViewMat = glm::lookAt((const glm::vec3&)directionalLights[0].getDirection(), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+	//glm::mat4 lightViewMat = glm::lookAt((const glm::vec3&)spotlightRef[0].getDirection(), (const glm::vec3&)spotlightRef[0].getPosition(), glm::vec3(0, 1, 0));
+	
+	glm::mat4 rotationMatrix = glm::lookAt((const glm::vec3&)spotlightRef[0].getPosition(), (const glm::vec3&)spotlightRef[0].getPosition() + (const glm::vec3&)spotlightRef[0].getDirection(), glm::vec3(0, 1, 0));
+	rotationMatrix = glm::inverse(rotationMatrix);
+	auto transDir = (const glm::vec3&)spotlightRef[0].getPosition();
+	transDir *= -1;
+	glm::mat4 translationMatrix = glm::mat4(1.0);
+	translationMatrix = glm::translate(translationMatrix, transDir);
+	glm::mat4 scaleMatrix = glm::mat4(1.0);
+	scaleMatrix = glm::scale(scaleMatrix, glm::vec3(spotlightRef[0].getRange()));
+
+	glm::mat4 model_matrix = glm::mat4(1.0);
+	model_matrix = translationMatrix * rotationMatrix * scaleMatrix;
+
+	glm::mat4 lightSpaceMatrix = lightProjection * model_matrix;
+	
+	shadowDepth_Shader->Bind();
+
+	shadowDepth_Shader->SetUniformMatrix4FValue("lightSpaceMatrix", lightSpaceMatrix);
+
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
+	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, (GLsizei)meshes_.size(), 0);
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+
+	shadowDepth_Shader->Unbind();
+	
+	glViewport(0, 0, viewport_size[2], viewport_size[3]);
+
+	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	// --------------------------------------------------------- SHADOWS -----------------------------------------------------------
 	 
 
 	spotlightShader->Unbind();
