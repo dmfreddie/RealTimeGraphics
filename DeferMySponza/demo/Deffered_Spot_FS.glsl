@@ -4,7 +4,7 @@ layout (location = 0) uniform sampler2DRect sampler_world_position;
 layout (location = 1) uniform sampler2DRect sampler_world_normal;
 layout (location = 2) uniform sampler2DRect sampler_world_material;
 layout (location = 3) uniform sampler2DArray textureArray;
-uniform sampler2D shadowMap;
+layout (location = 4) uniform sampler2D shadowMap;
 
 uniform int currentSpotLight;
 

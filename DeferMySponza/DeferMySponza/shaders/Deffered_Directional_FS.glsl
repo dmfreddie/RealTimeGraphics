@@ -73,6 +73,9 @@ uniform bool useTextures;
 vec3 DirLightCalc(vec3 colour);
 vec3 SpecularLight(vec3 LVector, vec3 diffuse_intensity);
 
+//vec3 Frostbite_DisneyDiffuse(vec3 NdotV, float NdotL, float LdotH, float linearRoughness);
+//vec3 F_Schlick(vec3 f0, vec3 f90, float u);
+////https://gist.github.com/galek/53557375251e1a942dfa
 void main(void)
 {
 	vec2 uv = texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).rg;
@@ -101,7 +104,7 @@ vec3 DirLightCalc(vec3 colour)
 		float scaler = max(0.0, dot(normalize(vertexNormal), dir.direction));
 
 		vec3 diffuseIntensity = (dir.intensity * scaler);
-		
+
 		if (materials[index].vertexShineyness > 0)
 			colour += diffuseIntensity + SpecularLight(dir.direction, dir.intensity) * texel_M;
 		else
@@ -128,3 +131,20 @@ vec3 SpecularLight(vec3 LVector, vec3 diffuse_intensity)
 	}
 	return vec3(0, 0, 0);
 }
+
+//vec3 Frostbite_DisneyDiffuse(vec3 NdotV, float NdotL, float LdotH, float linearRoughness)
+//{
+//	float energyBias = lerp(0, 0.5f, linearRoughness);
+//	float energyFactor = lerp(1.0f, 1.0f / 1.51f, linearRoughness);
+//	vec3 fd90 = energyBias + 2.0 * LdotH*LdotH * linearRoughness;
+//	vec3 f0 = vec3(1.0f, 1.0f, 1.0f);
+//	float lightScatter = F_Schlick(0.0f, fd90, NdotL).r;
+//	float viewScatter = F_Schlick(0.0f, fd90, NdotV).r;
+//
+//	return lightScatter * viewScatter * energyFactor;
+//}
+//
+//vec3 F_Schlick(vec3 f0, vec3 f90, float u)
+//{
+//	return f0 + (f90 - f0) * pow(1.0f - u, 5.0f);
+//}
