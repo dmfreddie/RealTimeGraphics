@@ -95,9 +95,25 @@ struct Material
 	int diffuseTextureID;
 };
 
+struct PBRMaterial
+{
+	glm::vec3 diffuseColour = glm::vec3(0.5f, 0.5f, 0.5f);
+	float metallic = 0.5f;
+	glm::vec3 specularColour = glm::vec3(0.5f, 0.5f, 0.5f);
+	float roughness = 0.5f;
+	float vertexShineyness = 0.5f;
+	float ambientOcclusion = 0.5f;
+	int diffuseTextureID = 0;
+};
+
 struct MaterialDataBlock
 {
 	Material materials[30];
+};
+
+struct PBRMaterialDataBlock
+{
+	PBRMaterial materials[30];
 };
 
 class MyView : public tygra::WindowViewDelegate
@@ -192,6 +208,10 @@ private:
 
 	MaterialDataBlock materialData;
 	GLuint materialDataUBO;
+
+	PBRMaterialDataBlock pbrMaterialData;
+	GLuint pbrMaterialHandle;
+	bool usePBRMaterials = true;
 
 
 	GLuint diffuse_texture_array_handle;

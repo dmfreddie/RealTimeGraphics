@@ -193,8 +193,8 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	scene::GeometryBuilder builder;
 	std::vector<Vertex> vertices_;
 	std::vector<unsigned int> elements;
+	std::vector<PBRMaterial> pbrMaterials;
 	std::vector<Material> materials;
-	
 	
 
 	const auto& scene_meshes = builder.getAllMeshes();
@@ -250,8 +250,16 @@ void MyView::windowViewWillStart(tygra::Window * window)
 			mat.specularColour = (const glm::vec3&)material.getSpecularColour();
 			mat.diffuseTextureID = materialIDCount;
 			materials.push_back(mat);
+
+			PBRMaterial pbrMat;
+			pbrMat.diffuseColour = mat.diffuseColour;
+			pbrMat.vertexShineyness = mat.vertexShineyness;
+			pbrMat.specularColour = mat.specularColour;
+			pbrMat.diffuseTextureID = materialIDCount;
+			pbrMaterials.push_back(pbrMat);
 		}
 		materialData.materials[materialIDCount] = materials[counter];
+		pbrMaterialData.materials[materialIDCount] = pbrMaterials[counter];
 		counter += (int)instances.size();
 		materialIDCount++;
 
@@ -288,8 +296,48 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	materialData.materials[25].diffuseTextureID = 10;
 	materialData.materials[26].diffuseTextureID = 2;
 
-	CheckError();
 
+	// Set the materials diffuse texture id to the corresponsing texture
+	pbrMaterialData.materials[0].diffuseTextureID = 0;
+	pbrMaterialData.materials[1].diffuseTextureID = 1;
+	pbrMaterialData.materials[2].diffuseTextureID = 2;
+	pbrMaterialData.materials[3].diffuseTextureID = 3;
+	pbrMaterialData.materials[4].diffuseTextureID = 4;
+	pbrMaterialData.materials[5].diffuseTextureID = 2;
+	pbrMaterialData.materials[6].diffuseTextureID = 5;
+	pbrMaterialData.materials[7].diffuseTextureID = 6;
+	pbrMaterialData.materials[8].diffuseTextureID = 2;
+	pbrMaterialData.materials[9].diffuseTextureID = 7;
+
+	pbrMaterialData.materials[10].diffuseTextureID = 2;
+	pbrMaterialData.materials[11].diffuseTextureID = 8;
+	pbrMaterialData.materials[12].diffuseTextureID = 9;
+	pbrMaterialData.materials[13].diffuseTextureID = 10;
+	pbrMaterialData.materials[14].diffuseTextureID = 11;
+	pbrMaterialData.materials[15].diffuseTextureID = 2;
+	pbrMaterialData.materials[16].diffuseTextureID = 7;
+	pbrMaterialData.materials[17].diffuseTextureID = 7;
+	pbrMaterialData.materials[18].diffuseTextureID = 2;
+	pbrMaterialData.materials[19].diffuseTextureID = 12;
+
+	pbrMaterialData.materials[20].diffuseTextureID = 4;
+	pbrMaterialData.materials[21].diffuseTextureID = 2;
+	pbrMaterialData.materials[22].diffuseTextureID = 2;
+	pbrMaterialData.materials[23].diffuseTextureID = 2;
+	pbrMaterialData.materials[24].diffuseTextureID = 13;
+	pbrMaterialData.materials[25].diffuseTextureID = 10;
+	pbrMaterialData.materials[26].diffuseTextureID = 2;
+	
+
+	for(int i = 0; i < 27; ++i)
+	{
+		pbrMaterialData.materials[i].roughness = 0.8f;
+		pbrMaterialData.materials[i].ambientOcclusion = 0.2f;
+		pbrMaterialData.materials[i].metallic = 0.3f;
+	}
+	
+	CheckError();
+	
 	glGenBuffers(1, &vertex_vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, vertex_vbo);
 	glBufferData(GL_ARRAY_BUFFER,
@@ -508,33 +556,45 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	glGenBuffers(1, &materialDataUBO);
 	glBindBuffer(GL_UNIFORM_BUFFER, materialDataUBO);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(MaterialDataBlock), &materialData, GL_DYNAMIC_DRAW);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(MaterialDataBlock), &materialData, GL_STATIC_DRAW);
+
+	glGenBuffers(1, &pbrMaterialHandle);
+	glBindBuffer(GL_UNIFORM_BUFFER, pbrMaterialHandle);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(PBRMaterialDataBlock), &pbrMaterialData, GL_STATIC_DRAW);
 
 	ambientLightShader->Bind();
 	glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialDataUBO);
 	glUniformBlockBinding(ambientLightShader->GetShaderID(), glGetUniformBlockIndex(ambientLightShader->GetShaderID(), "MaterialDataBlock"), 1);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 2, pbrMaterialHandle);
+	glUniformBlockBinding(ambientLightShader->GetShaderID(), glGetUniformBlockIndex(ambientLightShader->GetShaderID(), "PBRMaterialDataBlock"), 2);
 	ambientLightShader->Unbind();
 
 	directionalLightShader->Bind();
 	glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialDataUBO);
 	glUniformBlockBinding(directionalLightShader->GetShaderID(), glGetUniformBlockIndex(directionalLightShader->GetShaderID(), "MaterialDataBlock"), 1);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 2, pbrMaterialHandle);
+	glUniformBlockBinding(directionalLightShader->GetShaderID(), glGetUniformBlockIndex(directionalLightShader->GetShaderID(), "PBRMaterialDataBlock"), 2);
 	directionalLightShader->Unbind();
-
 
 	pointLightShader->Bind();
 	glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialDataUBO);
 	glUniformBlockBinding(pointLightShader->GetShaderID(), glGetUniformBlockIndex(pointLightShader->GetShaderID(), "MaterialDataBlock"), 1);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 2, pbrMaterialHandle);
+	glUniformBlockBinding(pointLightShader->GetShaderID(), glGetUniformBlockIndex(pointLightShader->GetShaderID(), "PBRMaterialDataBlock"), 2);
 	pointLightShader->Unbind();
 
 	spotlightShader->Bind();
 	glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialDataUBO);
 	glUniformBlockBinding(spotlightShader->GetShaderID(), glGetUniformBlockIndex(spotlightShader->GetShaderID(), "MaterialDataBlock"), 1);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 2, pbrMaterialHandle);
+	glUniformBlockBinding(spotlightShader->GetShaderID(), glGetUniformBlockIndex(spotlightShader->GetShaderID(), "PBRMaterialDataBlock"), 2);
 	spotlightShader->Unbind();
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 #pragma endregion 
 
 	CheckError();
 
+	return;
 #pragma region SMAA
 
 	edge_shader = new Shader(edge_vs.c_str(), edge_ps.c_str(), true);
@@ -749,9 +809,10 @@ void MyView::windowViewDidReset(tygra::Window * window,
 
 #pragma endregion
 
+	return;
+
 #pragma region SMAA
 
-	return;
 
 	glEnable(GL_TEXTURE_2D);
 
@@ -890,14 +951,14 @@ void MyView::windowViewDidReset(tygra::Window * window,
 
 void MyView::windowViewDidStop(tygra::Window * window)
 {
-	delete gbufferShadr;
+	/*delete gbufferShadr;
 	delete ambientLightShader;
 	delete directionalLightShader;
 	delete pointLightShader;
 	delete spotlightShader;
 	delete edge_shader;
 	delete blend_shader;
-	delete neighborhood_shader;
+	delete neighborhood_shader;*/
 
 	GLuint vaos[4] = { vao , light_quad_mesh_.vao, light_sphere_mesh_.vao, light_cone_mesh_.vao };
 	GLuint textures[9] = { gbuffer_position_tex_, gbuffer_normal_tex_, gbuffer_material_tex_, gbuffer_depth_tex_, albedo_tex, edge_tex, blend_tex, area_tex, search_tex }; 
@@ -1061,7 +1122,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	glStencilFunc(GL_EQUAL, 1, 0xFF);
 	glStencilMask(0xFF);
 
-	glBindBuffer(GL_UNIFORM_BUFFER, materialDataUBO);
+	glBindBuffer(GL_UNIFORM_BUFFER, pbrMaterialHandle);
 	glBindVertexArray(light_quad_mesh_.vao);
 	
 	
@@ -1113,77 +1174,77 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	
 
-	spotlightShader->Bind();
-	spotlightShader->SetUniformMatrix4FValue("projection_view", projection_view);
-	spotlightShader->SetUniformIntValue("useTextures", useTextures);
+	//spotlightShader->Bind();
+	//spotlightShader->SetUniformMatrix4FValue("projection_view", projection_view);
+	//spotlightShader->SetUniformIntValue("useTextures", useTextures);
 
-	for (int i = 0; i < spotlightRef.size(); ++i)
-	{
-		// --------------------------------------------------------- SHADOWS -----------------------------------------------------------
+	//for (int i = 0; i < spotlightRef.size(); ++i)
+	//{
+	//	// --------------------------------------------------------- SHADOWS -----------------------------------------------------------
 
-		glDisable(GL_STENCIL_TEST);
-		glEnable(GL_DEPTH_TEST);
-		glDisable(GL_CULL_FACE);
-		glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-		glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFrameBuffer);
-		glClear(GL_DEPTH_BUFFER_BIT);
-		glDepthMask(GL_TRUE);
+	//	glDisable(GL_STENCIL_TEST);
+	//	glEnable(GL_DEPTH_TEST);
+	//	glDisable(GL_CULL_FACE);
+	//	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+	//	glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFrameBuffer);
+	//	glClear(GL_DEPTH_BUFFER_BIT);
+	//	glDepthMask(GL_TRUE);
 
-		glBindVertexArray(vao);
+	//	glBindVertexArray(vao);
 
-		//glm::mat4 lightProjection = glm::ortho(-200.0f, 200.0f, -200.0f, 200.0f, -200.0f, 200.0f);
-		glm::mat4 lightPresPorojection = glm::perspective(glm::radians(spotlightRef[i].getConeAngleDegrees()), (float)(SHADOW_WIDTH / SHADOW_HEIGHT), 1.f, 1000.f);
-		//glm::mat4 lightViewMat = glm::lookAt((const glm::vec3&)directionalLights[0].getDirection(), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-		glm::mat4 lightViewMat = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0, 1, 0));
+	//	//glm::mat4 lightProjection = glm::ortho(-200.0f, 200.0f, -200.0f, 200.0f, -200.0f, 200.0f);
+	//	glm::mat4 lightPresPorojection = glm::perspective(glm::radians(spotlightRef[i].getConeAngleDegrees()), (float)(SHADOW_WIDTH / SHADOW_HEIGHT), 1.f, 1000.f);
+	//	//glm::mat4 lightViewMat = glm::lookAt((const glm::vec3&)directionalLights[0].getDirection(), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+	//	glm::mat4 lightViewMat = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0, 1, 0));
 
-		glm::mat4 rotationMatrix = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0, 1, 0));
-		rotationMatrix = glm::inverse(rotationMatrix);
-		auto transDir = (const glm::vec3&)spotlightRef[i].getPosition();
-		transDir *= -1;
-		glm::mat4 translationMatrix = glm::mat4(1.0);
-		translationMatrix = glm::translate(translationMatrix, transDir);
-		glm::mat4 scaleMatrix = glm::mat4(1.0);
-		scaleMatrix = glm::scale(scaleMatrix, glm::vec3(spotlightRef[i].getRange()));
+	//	glm::mat4 rotationMatrix = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0, 1, 0));
+	//	rotationMatrix = glm::inverse(rotationMatrix);
+	//	auto transDir = (const glm::vec3&)spotlightRef[i].getPosition();
+	//	transDir *= -1;
+	//	glm::mat4 translationMatrix = glm::mat4(1.0);
+	//	translationMatrix = glm::translate(translationMatrix, transDir);
+	//	glm::mat4 scaleMatrix = glm::mat4(1.0);
+	//	scaleMatrix = glm::scale(scaleMatrix, glm::vec3(spotlightRef[i].getRange()));
 
-		glm::mat4 model_matrix = glm::mat4(1.0);
-		model_matrix = translationMatrix * rotationMatrix * scaleMatrix;
+	//	glm::mat4 model_matrix = glm::mat4(1.0);
+	//	model_matrix = translationMatrix * rotationMatrix * scaleMatrix;
 
-		glm::mat4 lightSpaceMatrix = lightPresPorojection * model_matrix;
+	//	glm::mat4 lightSpaceMatrix = lightPresPorojection * model_matrix;
 
-		shadowDepth_Shader->Bind();
+	//	shadowDepth_Shader->Bind();
 
-		shadowDepth_Shader->SetUniformMatrix4FValue("lightSpaceMatrix", lightSpaceMatrix);
+	//	shadowDepth_Shader->SetUniformMatrix4FValue("lightSpaceMatrix", lightSpaceMatrix);
 
-		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
-		glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, (GLsizei)meshes_.size(), 0);
-		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+	//	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
+	//	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, (GLsizei)meshes_.size(), 0);
+	//	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 
-		glGenerateMipmap(GL_TEXTURE_2D);
+	//	glGenerateMipmap(GL_TEXTURE_2D);
 
-		shadowDepth_Shader->Unbind();
-		glBindVertexArray(0);
-		glViewport(0, 0, viewport_size[2], viewport_size[3]);
+	//	shadowDepth_Shader->Unbind();
+	//	glBindVertexArray(0);
+	//	glViewport(0, 0, viewport_size[2], viewport_size[3]);
 
-		glDisable(GL_DEPTH_TEST);
-		glEnable(GL_CULL_FACE);
-		glEnable(GL_STENCIL_TEST);
-		glDepthMask(GL_FALSE);
-		// --------------------------------------------------------- SHADOWS -----------------------------------------------------------
+	//	glDisable(GL_DEPTH_TEST);
+	//	glEnable(GL_CULL_FACE);
+	//	glEnable(GL_STENCIL_TEST);
+	//	glDepthMask(GL_FALSE);
+	//	// --------------------------------------------------------- SHADOWS -----------------------------------------------------------
 
-		glBindVertexArray(light_cone_mesh_.vao);	
-		
+	//	glBindVertexArray(light_cone_mesh_.vao);	
+	//	
 
-		glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
-		spotlightShader->Bind();
-		spotlightShader->SetUniformMatrix4FValue("model_matrix", model_matrix);
-		spotlightShader->SetUniformIntValue("currentSpotLight", i);
-		glDrawElements(GL_TRIANGLES, light_cone_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
-		spotlightShader->Unbind();
-	}
-	
-	glBindVertexArray(0);
-	
-	 
+	//	glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
+	//	spotlightShader->Bind();
+	//	spotlightShader->SetUniformMatrix4FValue("model_matrix", model_matrix);
+	//	spotlightShader->SetUniformIntValue("currentSpotLight", i);
+	//	glDrawElements(GL_TRIANGLES, light_cone_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
+	//	spotlightShader->Unbind();
+	//}
+	//
+	//glBindVertexArray(0);
+	//
+	// 
 
 	
 	

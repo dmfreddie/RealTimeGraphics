@@ -23,7 +23,7 @@ Shader::Shader(const char* vertexShaderPath, const char* fragMentShaderPath, boo
 }
 Shader::~Shader()
 {
-	glDeleteProgram(m_shaderProgram);
+	//glDeleteProgram(m_shaderProgram);
 }
 
 void Shader::BindAttributeLocation(int location, const char* name)
