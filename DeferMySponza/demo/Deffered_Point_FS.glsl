@@ -105,6 +105,7 @@ void main(void)
 	materialIndex = int(texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).b);
 
 	PBRMaterial pbrMat = pbrMaterials[materialIndex];
+	Material mat = materials[materialIndex];
 	PointLight currentPointLight = pointLight[currentPointLight];
 
 	vec3 N = vertexNormal;
@@ -114,7 +115,7 @@ void main(void)
     // calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 
     // of 0.04 and if it's a metal, use their albedo color as F0 (metallic workflow)    
     vec3 F0 = vec3(0.04); 
-    F0 = mix(F0, pbrMat.diffuseColour, pbrMat.metallic);
+    F0 = mix(F0, mat.diffuseColour, pbrMat.metallic);
     vec3 F   = FresnelSchlickRoughness(max(dot(N, V), 0.0), F0, pbrMat.roughness); // use modified Fresnel-Schlick approximation to take roughness into account
 
     // kS is equal to Fresnel
@@ -154,11 +155,14 @@ void main(void)
     float NdotL = max(dot(N, L), 0.0);        
 
     // add to outgoing radiance Lo
-    Lo += (kD * pbrMat.diffuseColour / PI + brdf) * radiance * NdotL ;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
+    Lo += (kD * mat.diffuseColour / PI + brdf) * radiance * NdotL ;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
 
 	// ambient lighting (note that the next IBL tutorial will replace 
     // this ambient lighting with environment lighting).
-    vec3 ambient = pbrMat.diffuseColour * pbrMat.ambientOcclusion;
+    vec3 ambient  = mat.diffuseColour * pbrMat.ambientOcclusion;
+
+	if(useTextures && materialIndex < 27)
+		ambient = texture(textureArray, vec3(vertexUV, mat.diffuseTextureID)).xyz  * pbrMat.ambientOcclusion;
 
     vec3 colour = ambient + Lo;
 
@@ -167,10 +171,9 @@ void main(void)
     // gamma correct
     colour = pow(colour, vec3(1.0/2.2)); 
 
-	vec3 final_colour = colour * attenuation;
+	vec3 final_colour =  colour * radiance * attenuation;
 
-	if(useTextures && materialIndex < 27)
-		final_colour *= texture(textureArray, vec3(vertexUV, pbrMat.diffuseTextureID)).xyz;
+	
 
 	reflected_light = final_colour;
 }

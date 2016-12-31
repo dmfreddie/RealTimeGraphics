@@ -296,44 +296,12 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	materialData.materials[25].diffuseTextureID = 10;
 	materialData.materials[26].diffuseTextureID = 2;
 
-
-	// Set the materials diffuse texture id to the corresponsing texture
-	pbrMaterialData.materials[0].diffuseTextureID = 0;
-	pbrMaterialData.materials[1].diffuseTextureID = 1;
-	pbrMaterialData.materials[2].diffuseTextureID = 2;
-	pbrMaterialData.materials[3].diffuseTextureID = 3;
-	pbrMaterialData.materials[4].diffuseTextureID = 4;
-	pbrMaterialData.materials[5].diffuseTextureID = 2;
-	pbrMaterialData.materials[6].diffuseTextureID = 5;
-	pbrMaterialData.materials[7].diffuseTextureID = 6;
-	pbrMaterialData.materials[8].diffuseTextureID = 2;
-	pbrMaterialData.materials[9].diffuseTextureID = 7;
-
-	pbrMaterialData.materials[10].diffuseTextureID = 2;
-	pbrMaterialData.materials[11].diffuseTextureID = 8;
-	pbrMaterialData.materials[12].diffuseTextureID = 9;
-	pbrMaterialData.materials[13].diffuseTextureID = 10;
-	pbrMaterialData.materials[14].diffuseTextureID = 11;
-	pbrMaterialData.materials[15].diffuseTextureID = 2;
-	pbrMaterialData.materials[16].diffuseTextureID = 7;
-	pbrMaterialData.materials[17].diffuseTextureID = 7;
-	pbrMaterialData.materials[18].diffuseTextureID = 2;
-	pbrMaterialData.materials[19].diffuseTextureID = 12;
-
-	pbrMaterialData.materials[20].diffuseTextureID = 4;
-	pbrMaterialData.materials[21].diffuseTextureID = 2;
-	pbrMaterialData.materials[22].diffuseTextureID = 2;
-	pbrMaterialData.materials[23].diffuseTextureID = 2;
-	pbrMaterialData.materials[24].diffuseTextureID = 13;
-	pbrMaterialData.materials[25].diffuseTextureID = 10;
-	pbrMaterialData.materials[26].diffuseTextureID = 2;
-	
-
 	for(int i = 0; i < 27; ++i)
 	{
-		pbrMaterialData.materials[i].roughness = 0.8f;
-		pbrMaterialData.materials[i].ambientOcclusion = 0.2f;
-		pbrMaterialData.materials[i].metallic = 0.3f;
+		pbrMaterialData.materials[i] = materialData.materials[i];
+		pbrMaterialData.materials[i].roughness = 0.5f;
+		pbrMaterialData.materials[i].ambientOcclusion = 0.5f;
+		pbrMaterialData.materials[i].metallic = 0.5f;
 	}
 	
 	CheckError();
@@ -976,7 +944,8 @@ void MyView::windowViewRender(tygra::Window * window)
 {
     assert(scene_ != nullptr);
 
-    glClearColor(0.29f, 0.f, 0.51f, 0.f);
+   // glClearColor(0.29f, 0.f, 0.51f, 0.f);
+    glClearColor(0.f, 0.f, 0.f, 0.f);
 
 	GLint viewport_size[4];
 	glGetIntegerv(GL_VIEWPORT, viewport_size);
@@ -1127,6 +1096,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	
 	
 	ambientLightShader->Bind();
+	glBindBuffer(GL_UNIFORM_BUFFER, pbrMaterialHandle);
 	ambientLightShader->SetUniformIntValue("useTextures", useTextures);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 	ambientLightShader->Unbind();
@@ -1141,6 +1111,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	glDepthMask(GL_FALSE);
 
 	directionalLightShader->Bind();
+	glBindBuffer(GL_UNIFORM_BUFFER, pbrMaterialHandle);
 	directionalLightShader->SetUniformIntValue("useTextures", useTextures);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 	directionalLightShader->Unbind();
@@ -1156,6 +1127,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	pointLightShader->Bind();
 	pointLightShader->SetUniformMatrix4FValue("projection_view", projection_view);
 	pointLightShader->SetUniformIntValue("useTextures", useTextures);
+	glBindBuffer(GL_UNIFORM_BUFFER, pbrMaterialHandle);
 	for (int i = 0; i < pointLights.size(); ++i)
 	{
 		glm::mat4 model_matrix = glm::mat4(1);

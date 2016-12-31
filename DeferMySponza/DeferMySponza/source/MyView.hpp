@@ -104,6 +104,15 @@ struct PBRMaterial
 	float vertexShineyness = 0.5f;
 	float ambientOcclusion = 0.5f;
 	int diffuseTextureID = 0;
+
+	PBRMaterial operator=(const Material& mat) {
+		PBRMaterial pbrMat;
+		pbrMat.diffuseColour = mat.diffuseColour;
+		pbrMat.vertexShineyness = mat.vertexShineyness;
+		pbrMat.specularColour = mat.specularColour;
+		pbrMat.diffuseTextureID = mat.diffuseTextureID;
+		return pbrMat;
+	}
 };
 
 struct MaterialDataBlock
