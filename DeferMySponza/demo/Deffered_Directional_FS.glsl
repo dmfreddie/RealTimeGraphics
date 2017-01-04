@@ -98,7 +98,7 @@ void main(void)
 	vec3 R = reflect(-V, N); 
 	// calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 
 	// of 0.04 and if it's a metal, use their albedo color as F0 (metallic workflow)    
-	vec3 F0 = vec3(0.04); 
+	vec3 F0 = pbrMat.specularColour; //vec3(0.04); 
 	F0 = mix(F0, pbrMat.diffuseColour, pbrMat.metallic);
 	vec3 F   = FresnelSchlickRoughness(max(dot(N, V), 0.0), F0, pbrMat.roughness); // use modified Fresnel-Schlick approximation to take roughness into account
 
@@ -116,7 +116,7 @@ void main(void)
 	// reflectance equation
 	vec3 Lo = vec3(0.0);
 
-	for(int i = 0; i < 2; ++i)
+	for(int i = 0; i < maxDirectionalLights; ++i)
 	{
 		DirectionalLight currentDirectionalLight = directionalLight[i];
 

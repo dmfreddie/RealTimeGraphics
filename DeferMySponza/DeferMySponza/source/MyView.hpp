@@ -139,7 +139,7 @@ private:
 	std::map<scene::MeshId, MeshGL> meshes_;
 	std::unordered_map<std::string, GLuint> textures;
 	std::unordered_map<std::string, GLuint> uniforms;
-	std::vector<glm::mat4> matrices, pointLightMatricies;
+	std::vector<glm::mat4> matrices, pointLightMatricies, spotlightMatricies;
 
 	GLuint vao; // VertexArrayObject for the shape's vertex array settings
 	GLuint vertex_vbo;
@@ -149,6 +149,7 @@ private:
 	GLuint commandBuffer;
 
 	GLuint pointLightMatrix_vbo;
+	GLuint spotLightMatrix_vbo;
 
 #pragma region GBuffer
 	struct Mesh

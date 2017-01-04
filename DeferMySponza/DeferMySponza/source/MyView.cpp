@@ -129,15 +129,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 			GL_STATIC_DRAW);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-		glGenVertexArrays(1, &light_cone_mesh_.vao);
-		glBindVertexArray(light_cone_mesh_.vao);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, light_cone_mesh_.element_vbo);
-		glBindBuffer(GL_ARRAY_BUFFER, light_cone_mesh_.vertex_vbo);
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
-			sizeof(glm::vec3), 0);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		glBindVertexArray(0);
+		
 #pragma endregion 
 
 #pragma region Shaders
@@ -226,6 +218,19 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		light.castShadow = spotlightRef[i].getCastShadow();
 
 		lightingData.spotLight[i] = light;
+
+		glm::mat4 rotationMatrix = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0, 1, 0));
+		rotationMatrix = glm::inverse(rotationMatrix);
+		auto transDir = (const glm::vec3&)spotlightRef[i].getPosition();
+		transDir *= -1;
+		glm::mat4 translationMatrix = glm::mat4(1.0);
+		translationMatrix = glm::translate(translationMatrix, transDir);
+		glm::mat4 scaleMatrix = glm::mat4(1.0);
+		scaleMatrix = glm::scale(scaleMatrix, glm::vec3(spotlightRef[i].getRange()));
+
+		glm::mat4 model_matrix = glm::mat4(1.0);
+		model_matrix = translationMatrix * rotationMatrix * scaleMatrix;
+		spotlightMatricies.push_back(model_matrix);
 	}
 	lightingData.maxDirectionalLights = (float)directionalLightRef.size();
 
@@ -400,6 +405,16 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	CheckError();
 	
+	glGenBuffers(1, &spotLightMatrix_vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, spotLightMatrix_vbo);
+	glBufferData(GL_ARRAY_BUFFER,
+		spotlightMatricies.size() * sizeof(glm::mat4),
+		spotlightMatricies.data(),
+		GL_DYNAMIC_DRAW
+		);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	CheckError();
 
 #pragma region Setting Up Buffer
 
@@ -439,6 +454,23 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		sizeof(glm::vec3), 0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ARRAY_BUFFER, pointLightMatrix_vbo);
+	for (unsigned int i = 0; i < 4; i++) {
+		glEnableVertexAttribArray(1 + i);
+		glVertexAttribPointer(1 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (const GLvoid*)(sizeof(GLfloat) * i * 4));
+		glVertexAttribDivisor(1 + i, 1);
+	}
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+
+	glGenVertexArrays(1, &light_cone_mesh_.vao);
+	glBindVertexArray(light_cone_mesh_.vao);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, light_cone_mesh_.element_vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, light_cone_mesh_.vertex_vbo);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
+		sizeof(glm::vec3), 0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ARRAY_BUFFER, spotLightMatrix_vbo);
 	for (unsigned int i = 0; i < 4; i++) {
 		glEnableVertexAttribArray(1 + i);
 		glVertexAttribPointer(1 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (const GLvoid*)(sizeof(GLfloat) * i * 4));
@@ -1021,6 +1053,19 @@ void MyView::windowViewRender(tygra::Window * window)
 	{
 		lightingData.spotLight[i].position = (const glm::vec3&) spotlightRef[i].getPosition();
 		lightingData.spotLight[i].direction = (const glm::vec3&) spotlightRef[i].getDirection();
+
+		glm::mat4 rotationMatrix = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0, 1, 0));
+		rotationMatrix = glm::inverse(rotationMatrix);
+		auto transDir = (const glm::vec3&)spotlightRef[i].getPosition();
+		transDir *= -1;
+		glm::mat4 translationMatrix = glm::mat4(1.0);
+		translationMatrix = glm::translate(translationMatrix, transDir);
+		glm::mat4 scaleMatrix = glm::mat4(1.0);
+		scaleMatrix = glm::scale(scaleMatrix, glm::vec3(spotlightRef[i].getRange()));
+
+		glm::mat4 model_matrix = glm::mat4(1.0);
+		model_matrix = translationMatrix * rotationMatrix * scaleMatrix;
+		spotlightMatricies[i] = model_matrix;
 	}
 	
 	lightingData.cameraPosition = (const glm::vec3&)scene_->getCamera().getPosition();
@@ -1151,11 +1196,17 @@ void MyView::windowViewRender(tygra::Window * window)
 	glBindVertexArray(0);
 
 
-	
+	glBindVertexArray(light_cone_mesh_.vao);
 
-	//spotlightShader->Bind();
-	//spotlightShader->SetUniformMatrix4FValue("projection_view", projection_view);
-	//spotlightShader->SetUniformIntValue("useTextures", useTextures);
+	spotlightShader->Bind();
+	spotlightShader->SetUniformMatrix4FValue("projection_view", projection_view);
+	spotlightShader->SetUniformIntValue("useTextures", useTextures);
+	glBindBuffer(GL_UNIFORM_BUFFER, pbrMaterialHandle);
+
+	glDrawElementsInstanced(GL_TRIANGLES, light_cone_mesh_.element_count, GL_UNSIGNED_INT, nullptr, spotlightMatricies.size());
+
+	spotlightShader->Unbind();
+	glBindVertexArray(0);
 
 	//for (int i = 0; i < spotlightRef.size(); ++i)
 	//{
@@ -1221,7 +1272,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	//	spotlightShader->Unbind();
 	//}
 	//
-	//glBindVertexArray(0);
+	
 	//
 	// 
 
