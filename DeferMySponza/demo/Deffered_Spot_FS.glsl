@@ -53,17 +53,20 @@ layout(std140) uniform DataBlock
 	float maxSpotlights;
 };
 
-struct Material
+struct PBRMaterial
 {
 	vec3 diffuseColour;
-	float vertexShineyness;
+	float metallic;
 	vec3 specularColour;
+	float roughness;
+	float vertexShineyness;
+	float ambientOcclusion;
 	int diffuseTextureID;
 };
 
-layout(std140) uniform MaterialDataBlock
+layout(std140) uniform PBRMaterialDataBlock
 {
-	Material materials[30];
+	PBRMaterial pbrMaterials[30];
 };
 
 out vec3 reflected_light;
@@ -94,7 +97,7 @@ void main(void)
 	vec2 uv = texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).rg;
 
 	if(useTextures && index < 27)
-		final_colour *= texture(textureArray, vec3(uv, materials[index].diffuseTextureID)).xyz;
+		final_colour *= texture(textureArray, vec3(uv, pbrMaterials[index].diffuseTextureID)).xyz;
 
 	reflected_light = final_colour;
 }
@@ -125,7 +128,7 @@ Also call the specular for that light and add it to the diffuse value
 vec3 DiffuseLight(vec3 lightPosition, vec3 lightIntensity, float attenuation)
 {
 	
-	vec3 texel_M = materials[index].diffuseColour;
+	vec3 texel_M = pbrMaterials[index].diffuseColour;
 	vec3 L = normalize(lightPosition - vertexPos);
 	float scaler = max(0, dot(L, normalize(vertexNormal))) * attenuation;
 
@@ -136,7 +139,7 @@ vec3 DiffuseLight(vec3 lightPosition, vec3 lightIntensity, float attenuation)
 	
 	float shadow = ShadowCalculation(fraglightspacePos);
 
-	if (materials[index].vertexShineyness > 0)
+	if (pbrMaterials[index].vertexShineyness > 0)
 		return  diffuse_intensity + (1.0 - shadow) + SpecularLight(L, diffuse_intensity);
 	else
 		return  diffuse_intensity;
@@ -185,10 +188,10 @@ vec3 SpecularLight(vec3 LVector, vec3 diffuse_intensity)
 
 	if (specularFactor > 0)
 	{
-		vec3 specularIntensity = diffuse_intensity * pow(specularFactor, materials[index].vertexShineyness);
+		vec3 specularIntensity = diffuse_intensity * pow(specularFactor, pbrMaterials[index].vertexShineyness);
 		//if(useTextures)
 		//	specularIntensity *= texture2DArray(specularTextureArray, vec3(text_coord, vert_diffuse_texture_ID)).rgb;
-		return materials[index].specularColour * specularIntensity;
+		return pbrMaterials[index].specularColour * specularIntensity;
 	}
 	return vec3(0, 0, 0);
 }

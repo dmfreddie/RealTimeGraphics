@@ -50,14 +50,6 @@ layout(std140) uniform DataBlock
 	float maxSpotlights;
 };
 
-struct Material
-{
-	vec3 diffuseColour;
-	float vertexShineyness;
-	vec3 specularColour;
-	int diffuseTextureID;
-};
-
 struct PBRMaterial
 {
 	vec3 diffuseColour;
@@ -67,11 +59,6 @@ struct PBRMaterial
 	float vertexShineyness;
 	float ambientOcclusion;
 	int diffuseTextureID;
-};
-
-layout(std140) uniform MaterialDataBlock
-{
-	Material materials[30];
 };
 
 layout(std140) uniform PBRMaterialDataBlock
@@ -103,7 +90,6 @@ void main(void)
 	materialIndex = int(texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).b);
 
 	PBRMaterial pbrMat = pbrMaterials[materialIndex];
-	Material mat = materials[materialIndex];
 
 	vec3 final_colour = vec3(0.0);
 
@@ -113,7 +99,7 @@ void main(void)
 	// calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 
 	// of 0.04 and if it's a metal, use their albedo color as F0 (metallic workflow)    
 	vec3 F0 = vec3(0.04); 
-	F0 = mix(F0, mat.diffuseColour, pbrMat.metallic);
+	F0 = mix(F0, pbrMat.diffuseColour, pbrMat.metallic);
 	vec3 F   = FresnelSchlickRoughness(max(dot(N, V), 0.0), F0, pbrMat.roughness); // use modified Fresnel-Schlick approximation to take roughness into account
 
 	// kS is equal to Fresnel
@@ -155,14 +141,14 @@ void main(void)
 		float NdotL = max(dot(N, L), 0.0);        
 
 		// add to outgoing radiance Lo
-		Lo += (kD * mat.diffuseColour / PI + brdf) * radiance * NdotL ;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
+		Lo += (kD * pbrMat.diffuseColour / PI + brdf) * radiance * NdotL ;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
 	}
 	// ambient lighting (note that the next IBL tutorial will replace 
 	// this ambient lighting with environment lighting).
-	vec3 ambient = mat.diffuseColour * pbrMat.ambientOcclusion;
+	vec3 ambient = pbrMat.diffuseColour * pbrMat.ambientOcclusion;
 
 	if(useTextures && materialIndex < 27)
-		ambient = texture(textureArray, vec3(vertexUV, mat.diffuseTextureID)).xyz * pbrMat.ambientOcclusion;
+		ambient = texture(textureArray, vec3(vertexUV, pbrMat.diffuseTextureID)).xyz * pbrMat.ambientOcclusion;
 
 
 	vec3 colour =/* ambient +*/ Lo;

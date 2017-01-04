@@ -49,17 +49,20 @@ layout(std140) uniform DataBlock
 	float maxSpotlights;
 };
 
-struct Material
+struct PBRMaterial
 {
 	vec3 diffuseColour;
-	float vertexShineyness;
+	float metallic;
 	vec3 specularColour;
+	float roughness;
+	float vertexShineyness;
+	float ambientOcclusion;
 	int diffuseTextureID;
 };
 
-layout(std140) uniform MaterialDataBlock
+layout(std140) uniform PBRMaterialDataBlock
 {
-	Material materials[30];
+	PBRMaterial pbrMaterials[30];
 };
 
 out vec3 reflected_light;
@@ -74,14 +77,14 @@ void main(void)
 	//vec3 texel_M = texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).rgb;
 	int index = int(texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).b);
 	vec2 uv = texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).rg;
-	vec3 texel_M = materials[index].diffuseColour;
+	vec3 texel_M = pbrMaterials[index].diffuseColour;
 	//vec3 texel_M = texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).rgb;
 	//vec3 N = normalize(texel_N);
 
 	//final_colour *= texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).rgb;
 
 	if(useTextures && index < 27)
-		final_colour = texture(textureArray, vec3(uv, materials[index].diffuseTextureID)).xyz;
+		final_colour = texture(textureArray, vec3(uv, pbrMaterials[index].diffuseTextureID)).xyz;
 	else
 		final_colour = texel_M;
 

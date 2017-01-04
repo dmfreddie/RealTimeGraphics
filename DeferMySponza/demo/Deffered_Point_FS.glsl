@@ -33,14 +33,6 @@ struct SpotLight
 	bool castShadow;
 };
 
-struct Material
-{
-	vec3 diffuseColour;
-	float vertexShineyness;
-	vec3 specularColour;
-	int diffuseTextureID;
-};
-
 struct PBRMaterial
 {
 	vec3 diffuseColour;
@@ -71,11 +63,6 @@ layout(std140) uniform DataBlock
 	float maxSpotlights;
 };
 
-layout(std140) uniform MaterialDataBlock
-{
-	Material materials[30];
-};
-
 layout(std140) uniform PBRMaterialDataBlock
 {
 	PBRMaterial pbrMaterials[30];
@@ -88,9 +75,11 @@ vec3 vertexNormal;
 vec2 vertexUV;
 uniform bool useTextures;
 
+flat in int InstanceID;
 
 const float PI = 3.14159265359;
 
+vec3 PointLightCalculations(PBRMaterial pbrMat);
 float DistributionGGX(vec3 N, vec3 H, float roughness);
 float GeometrySchlickGGX(float NdotV, float roughness);
 float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness);
@@ -105,77 +94,89 @@ void main(void)
 	materialIndex = int(texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).b);
 
 	PBRMaterial pbrMat = pbrMaterials[materialIndex];
-	Material mat = materials[materialIndex];
-	PointLight currentPointLight = pointLight[currentPointLight];
-
-	vec3 N = vertexNormal;
-    vec3 V = normalize(cameraPosition - vertexPosition);
-    vec3 R = reflect(-V, N); 
-
-    // calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 
-    // of 0.04 and if it's a metal, use their albedo color as F0 (metallic workflow)    
-    vec3 F0 = vec3(0.04); 
-    F0 = mix(F0, mat.diffuseColour, pbrMat.metallic);
-    vec3 F   = FresnelSchlickRoughness(max(dot(N, V), 0.0), F0, pbrMat.roughness); // use modified Fresnel-Schlick approximation to take roughness into account
-
-    // kS is equal to Fresnel
-    vec3 kS = F;
-    // for energy conservation, the diffuse and specular light can't
-    // be above 1.0 (unless the surface emits light); to preserve this
-    // relationship the diffuse component (kD) should equal 1.0 - kS.
-    vec3 kD = vec3(1.0) - kS;
-    // multiply kD by the inverse metalness such that only non-metals 
-    // have diffuse lighting, or a linear blend if partly metal (pure metals
-    // have no diffuse light).
-    kD *= 1.0 - pbrMat.metallic;
-
-	// reflectance equation
-    vec3 Lo = vec3(0.0);
-
-	// calculate per-light radiance
-    vec3 L = normalize(currentPointLight.position - vertexPosition);
-    vec3 H = normalize(V + L);
-    float dist = length(currentPointLight.position - vertexPosition);
-    float attenuation = 1 - smoothstep(0.0, currentPointLight.range, dist);
-
-
-    vec3 radiance = currentPointLight.intensity;
-
-    // Cook-Torrance BRDF
-    float NDF = DistributionGGX(N, H, pbrMat.roughness);   
-    float G   = GeometrySmith(N, V, L, pbrMat.roughness);      
-           
-    vec3 nominator    = NDF * G * F; 
-    float denominator = 4 * max(dot(V, N), 0.0) * max(dot(L, N), 0.0); // 0.001 to prevent divide by zero.
-	if(denominator == 0.0)
-		denominator = 0.001;
-    vec3 brdf = nominator / denominator;
-
-    // scale light by NdotL
-    float NdotL = max(dot(N, L), 0.0);        
-
-    // add to outgoing radiance Lo
-    Lo += (kD * mat.diffuseColour / PI + brdf) * radiance * NdotL ;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
-
-	// ambient lighting (note that the next IBL tutorial will replace 
-    // this ambient lighting with environment lighting).
-    vec3 ambient  = mat.diffuseColour * pbrMat.ambientOcclusion;
-
-	if(useTextures && materialIndex < 27)
-		ambient = texture(textureArray, vec3(vertexUV, mat.diffuseTextureID)).xyz  * pbrMat.ambientOcclusion;
-
-    vec3 colour = ambient + Lo;
-
-	// HDR tonemapping
-    colour = colour / (colour + vec3(1.0));
-    // gamma correct
-    colour = pow(colour, vec3(1.0/2.2)); 
-
-	vec3 final_colour =  colour * radiance * attenuation;
-
 	
+	vec3 final_colour = PointLightCalculations(pbrMat);
 
 	reflected_light = final_colour;
+}
+
+vec3 PointLightCalculations(PBRMaterial pbrMat)
+{
+	//vec3 finalColour = vec3(0,0,0);
+
+		PointLight currentPointLight = pointLight[InstanceID];
+		
+		float dist = length(currentPointLight.position - vertexPosition);
+		float attenuation = 1 - smoothstep(0.0, currentPointLight.range, dist);
+	
+		if(attenuation <= 0.0)
+			return vec3(0,0,0);
+
+		vec3 N = vertexNormal;
+		vec3 V = normalize(cameraPosition - vertexPosition);
+		vec3 R = reflect(-V, N); 
+
+		// calculate reflectance at normal incidence; if dia-electric (like plastic) use F0 
+		// of 0.04 and if it's a metal, use their albedo color as F0 (metallic workflow)    
+		vec3 F0 = vec3(0.04); 
+		F0 = mix(F0, pbrMat.diffuseColour, pbrMat.metallic);
+		vec3 F   = FresnelSchlickRoughness(max(dot(N, V), 0.0), F0, pbrMat.roughness); // use modified Fresnel-Schlick approximation to take roughness into account
+
+		// kS is equal to Fresnel
+		vec3 kS = F;
+		// for energy conservation, the diffuse and specular light can't
+		// be above 1.0 (unless the surface emits light); to preserve this
+		// relationship the diffuse component (kD) should equal 1.0 - kS.
+		vec3 kD = vec3(1.0) - kS;
+		// multiply kD by the inverse metalness such that only non-metals 
+		// have diffuse lighting, or a linear blend if partly metal (pure metals
+		// have no diffuse light).
+		kD *= 1.0 - pbrMat.metallic;
+
+		// reflectance equation
+		vec3 Lo = vec3(0.0);
+
+		// calculate per-light radiance
+		vec3 L = normalize(currentPointLight.position - vertexPosition);
+		vec3 H = normalize(V + L);
+		
+
+		vec3 radiance = currentPointLight.intensity;
+
+		// Cook-Torrance BRDF
+		float NDF = DistributionGGX(N, H, pbrMat.roughness);   
+		float G   = GeometrySmith(N, V, L, pbrMat.roughness);      
+           
+		vec3 nominator    = NDF * G * F; 
+		float denominator = 4 * max(dot(V, N), 0.0) * max(dot(L, N), 0.0); // 0.001 to prevent divide by zero.
+		if(denominator == 0.0)
+			denominator = 0.001;
+		vec3 brdf = nominator / denominator;
+
+		// scale light by NdotL
+		float NdotL = max(dot(N, L), 0.0);        
+
+		// add to outgoing radiance Lo
+		Lo += (kD * pbrMat.diffuseColour / PI + brdf) * radiance * NdotL ;  // note that we already multiplied the BRDF by the Fresnel (kS) so we won't multiply by kS again
+
+		// ambient lighting (note that the next IBL tutorial will replace 
+		// this ambient lighting with environment lighting).
+		vec3 ambient  = pbrMat.diffuseColour * pbrMat.ambientOcclusion;
+
+		if(useTextures && materialIndex < 27)
+			ambient = texture(textureArray, vec3(vertexUV, pbrMat.diffuseTextureID)).xyz  * pbrMat.ambientOcclusion;
+
+		vec3 colour = ambient + Lo;
+
+		// HDR tonemapping
+		colour = colour / (colour + vec3(1.0));
+		// gamma correct
+		colour = pow(colour, vec3(1.0/2.2)); 
+
+		vec3 final_idv_colour =  colour * radiance * attenuation;
+		//finalColour += final_idv_colour ;
+	
+	return final_idv_colour ;
 }
 
 

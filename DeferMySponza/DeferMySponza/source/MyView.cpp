@@ -100,15 +100,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 			GL_STATIC_DRAW);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
-		glGenVertexArrays(1, &light_sphere_mesh_.vao);
-		glBindVertexArray(light_sphere_mesh_.vao);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, light_sphere_mesh_.element_vbo);
-		glBindBuffer(GL_ARRAY_BUFFER, light_sphere_mesh_.vertex_vbo);
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
-			sizeof(glm::vec3), 0);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-		glBindVertexArray(0);
+		
 #pragma endregion 
 
 	/*
@@ -189,12 +181,66 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	SetFromExisteingTextureArray(diffuse_texture_array_handle, spotlightShader, "textureArray");
 #pragma endregion 
 
+#pragma region Lighting setup	
+
+	//Create the light vector so there will be memory already reserved that can just be overwritten if values have been changed. This has been done on 
+	//start for effiences in the constant render loop function.
+	auto& pointLightsRef = scene_->getAllPointLights();
+	for (unsigned int i = 0; i < pointLightsRef.size(); ++i)
+	{
+		PointLight light;
+		light.position = (const glm::vec3&) pointLightsRef[i].getPosition();
+		light.range = pointLightsRef[i].getRange();
+		light.intensity = (const glm::vec3&) pointLightsRef[i].getIntensity();
+		light.padding = 0.0f;
+		lightingData.pointLight[i] = light;
+		glm::mat4 matrix = glm::mat4(1.0);
+		matrix = glm::translate(matrix, light.position);
+		matrix = glm::scale(matrix, glm::vec3(light.range, light.range, light.range));
+		pointLightMatricies.push_back(matrix);
+	}
+	lightingData.maxPointLights = (float)pointLightsRef.size();
+
+
+	auto& directionalLightRef = scene_->getAllDirectionalLights();
+	for (unsigned int i = 0; i < directionalLightRef.size(); ++i)
+	{
+		DirectionalLight light;
+		light.direction = (const glm::vec3&) directionalLightRef[i].getDirection();
+		light.intensity = (const glm::vec3&) directionalLightRef[i].getIntensity();
+		light.padding1 = 0.0f;
+		light.padding2 = 0.0f;
+		lightingData.directionalLight[i] = light;
+	}
+	lightingData.maxDirectionalLights = (float)directionalLightRef.size();
+
+	auto& spotlightRef = scene_->getAllSpotLights();
+	for (unsigned int i = 0; i < spotlightRef.size(); ++i)
+	{
+		SpotLight light;
+		light.position = (const glm::vec3&) spotlightRef[i].getPosition();
+		light.direction = (const glm::vec3&) spotlightRef[i].getDirection();
+		light.intensity = (const glm::vec3&) spotlightRef[i].getIntensity();
+		light.range = spotlightRef[i].getRange();
+		light.coneAngle = spotlightRef[i].getConeAngleDegrees();
+		light.castShadow = spotlightRef[i].getCastShadow();
+
+		lightingData.spotLight[i] = light;
+	}
+	lightingData.maxDirectionalLights = (float)directionalLightRef.size();
+
+
+	lightingData.ambientLight.ambient_light = (const glm::vec3&)scene_->getAmbientLightIntensity();
+
+	CheckError();
+#pragma endregion 
+
 #pragma region Load the mesh into buffers
 	scene::GeometryBuilder builder;
 	std::vector<Vertex> vertices_;
 	std::vector<unsigned int> elements;
 	std::vector<PBRMaterial> pbrMaterials;
-	std::vector<Material> materials;
+	std::vector<PBRMaterial> materials;
 	
 
 	const auto& scene_meshes = builder.getAllMeshes();
@@ -244,21 +290,15 @@ void MyView::windowViewWillStart(tygra::Window * window)
 			matrices.push_back(model_xform);
 
 			scene::Material material = scene_->getMaterialById(inst.getMaterialId());
-			Material mat;
-			mat.diffuseColour = (const glm::vec3&)material.getDiffuseColour();
-			mat.vertexShineyness = material.getShininess();
-			mat.specularColour = (const glm::vec3&)material.getSpecularColour();
-			mat.diffuseTextureID = materialIDCount;
-			materials.push_back(mat);
 
 			PBRMaterial pbrMat;
-			pbrMat.diffuseColour = mat.diffuseColour;
-			pbrMat.vertexShineyness = mat.vertexShineyness;
-			pbrMat.specularColour = mat.specularColour;
+			pbrMat.diffuseColour = (const glm::vec3&)material.getDiffuseColour();
+			pbrMat.vertexShineyness = material.getShininess();
+			pbrMat.specularColour = (const glm::vec3&)material.getSpecularColour();
 			pbrMat.diffuseTextureID = materialIDCount;
 			pbrMaterials.push_back(pbrMat);
 		}
-		materialData.materials[materialIDCount] = materials[counter];
+
 		pbrMaterialData.materials[materialIDCount] = pbrMaterials[counter];
 		counter += (int)instances.size();
 		materialIDCount++;
@@ -266,39 +306,39 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	}
 
 	// Set the materials diffuse texture id to the corresponsing texture
-	materialData.materials[0].diffuseTextureID = 0;
-	materialData.materials[1].diffuseTextureID = 1;
-	materialData.materials[2].diffuseTextureID = 2;
-	materialData.materials[3].diffuseTextureID = 3;
-	materialData.materials[4].diffuseTextureID = 4;
-	materialData.materials[5].diffuseTextureID = 2;
-	materialData.materials[6].diffuseTextureID = 5;
-	materialData.materials[7].diffuseTextureID = 6;
-	materialData.materials[8].diffuseTextureID = 2;
-	materialData.materials[9].diffuseTextureID = 7;
-	
-	materialData.materials[10].diffuseTextureID = 2;
-	materialData.materials[11].diffuseTextureID = 8;
-	materialData.materials[12].diffuseTextureID = 9;
-	materialData.materials[13].diffuseTextureID = 10;
-	materialData.materials[14].diffuseTextureID = 11;
-	materialData.materials[15].diffuseTextureID = 2;
-	materialData.materials[16].diffuseTextureID = 7;
-	materialData.materials[17].diffuseTextureID = 7;
-	materialData.materials[18].diffuseTextureID = 2;
-	materialData.materials[19].diffuseTextureID = 12;
-	
-	materialData.materials[20].diffuseTextureID = 4;
-	materialData.materials[21].diffuseTextureID = 2;
-	materialData.materials[22].diffuseTextureID = 2;
-	materialData.materials[23].diffuseTextureID = 2;
-	materialData.materials[24].diffuseTextureID = 13;
-	materialData.materials[25].diffuseTextureID = 10;
-	materialData.materials[26].diffuseTextureID = 2;
+	pbrMaterialData.materials[0].diffuseTextureID = 0;
+	pbrMaterialData.materials[1].diffuseTextureID = 1;
+	pbrMaterialData.materials[2].diffuseTextureID = 2;
+	pbrMaterialData.materials[3].diffuseTextureID = 3;
+	pbrMaterialData.materials[4].diffuseTextureID = 4;
+	pbrMaterialData.materials[5].diffuseTextureID = 2;
+	pbrMaterialData.materials[6].diffuseTextureID = 5;
+	pbrMaterialData.materials[7].diffuseTextureID = 6;
+	pbrMaterialData.materials[8].diffuseTextureID = 2;
+	pbrMaterialData.materials[9].diffuseTextureID = 7;
 
-	for(int i = 0; i < 27; ++i)
+	pbrMaterialData.materials[10].diffuseTextureID = 2;
+	pbrMaterialData.materials[11].diffuseTextureID = 8;
+	pbrMaterialData.materials[12].diffuseTextureID = 9;
+	pbrMaterialData.materials[13].diffuseTextureID = 10;
+	pbrMaterialData.materials[14].diffuseTextureID = 11;
+	pbrMaterialData.materials[15].diffuseTextureID = 2;
+	pbrMaterialData.materials[16].diffuseTextureID = 7;
+	pbrMaterialData.materials[17].diffuseTextureID = 7;
+	pbrMaterialData.materials[18].diffuseTextureID = 2;
+	pbrMaterialData.materials[19].diffuseTextureID = 12;
+
+	pbrMaterialData.materials[20].diffuseTextureID = 4;
+	pbrMaterialData.materials[21].diffuseTextureID = 2;
+	pbrMaterialData.materials[22].diffuseTextureID = 2;
+	pbrMaterialData.materials[23].diffuseTextureID = 2;
+	pbrMaterialData.materials[24].diffuseTextureID = 13;
+	pbrMaterialData.materials[25].diffuseTextureID = 10;
+	pbrMaterialData.materials[26].diffuseTextureID = 2;
+
+	for(int i = 0; i < 30; ++i)
 	{
-		pbrMaterialData.materials[i] = materialData.materials[i];
+		//pbrMaterialData.materials[i] = materialData.materials[i];
 		pbrMaterialData.materials[i].roughness = 0.5f;
 		pbrMaterialData.materials[i].ambientOcclusion = 0.5f;
 		pbrMaterialData.materials[i].metallic = 0.5f;
@@ -329,8 +369,8 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glGenBuffers(1, &material_vbo);
 	glBindBuffer(GL_ARRAY_BUFFER, material_vbo);
 	glBufferData(GL_ARRAY_BUFFER,
-		materials.size() * sizeof(Material),
-		materials.data(),
+		pbrMaterials.size() * sizeof(PBRMaterial),
+		pbrMaterials.data(),
 		GL_STATIC_DRAW
 		);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -348,6 +388,19 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	CheckError();
 
+
+	glGenBuffers(1, &pointLightMatrix_vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, pointLightMatrix_vbo);
+	glBufferData(GL_ARRAY_BUFFER,
+		pointLightMatricies.size() * sizeof(glm::mat4),
+		pointLightMatricies.data(),
+		GL_DYNAMIC_DRAW
+		);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	CheckError();
+	
+
 #pragma region Setting Up Buffer
 
 	glGenVertexArrays(1, &vao);
@@ -363,27 +416,37 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_ARRAY_BUFFER, material_vbo);
 	glEnableVertexAttribArray(3);
-	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, diffuseColour));
+	glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, sizeof(PBRMaterial), TGL_BUFFER_OFFSET_OF(PBRMaterial, diffuseTextureID));
 	glVertexAttribDivisor(3, 1);
-	glEnableVertexAttribArray(4);
-	glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, specularColour));
-	glVertexAttribDivisor(4, 1);
-	glEnableVertexAttribArray(5);
-	glVertexAttribPointer(5, 1, GL_FLOAT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, vertexShineyness));
-	glVertexAttribDivisor(5, 1);
-	glEnableVertexAttribArray(6);
-	glVertexAttribPointer(6, 1, GL_FLOAT, GL_FALSE, sizeof(Material), TGL_BUFFER_OFFSET_OF(Material, diffuseTextureID));
-	glVertexAttribDivisor(6, 1);
+
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 	glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
 	for (unsigned int i = 0; i < 4; i++) {
-		glEnableVertexAttribArray(7 + i);
-		glVertexAttribPointer(7 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (const GLvoid*)(sizeof(GLfloat) * i * 4));
-		glVertexAttribDivisor(7 + i, 1);
+		glEnableVertexAttribArray(4 + i);
+		glVertexAttribPointer(4 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (const GLvoid*)(sizeof(GLfloat) * i * 4));
+		glVertexAttribDivisor(4 + i, 1);
 	}
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
+
+	glGenVertexArrays(1, &light_sphere_mesh_.vao);
+	glBindVertexArray(light_sphere_mesh_.vao);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, light_sphere_mesh_.element_vbo);
+	glBindBuffer(GL_ARRAY_BUFFER, light_sphere_mesh_.vertex_vbo);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE,
+		sizeof(glm::vec3), 0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ARRAY_BUFFER, pointLightMatrix_vbo);
+	for (unsigned int i = 0; i < 4; i++) {
+		glEnableVertexAttribArray(1 + i);
+		glVertexAttribPointer(1 + i, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (const GLvoid*)(sizeof(GLfloat) * i * 4));
+		glVertexAttribDivisor(1 + i, 1);
+	}
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+
 
 #pragma endregion 
 
@@ -443,55 +506,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	CheckError();
 
-#pragma region Lighting setup	
 
-	//Create the light vector so there will be memory already reserved that can just be overwritten if values have been changed. This has been done on 
-	//start for effiences in the constant render loop function.
-	auto& pointLightsRef = scene_->getAllPointLights();
-	for (unsigned int i = 0; i < pointLightsRef.size(); ++i)
-	{
-		PointLight light;
-		light.position = (const glm::vec3&) pointLightsRef[i].getPosition();
-		light.range = pointLightsRef[i].getRange();
-		light.intensity = (const glm::vec3&) pointLightsRef[i].getIntensity();
-		light.padding = 0.0f;
-		lightingData.pointLight[i] = light;
-	}
-	lightingData.maxPointLights = (float)pointLightsRef.size();
-
-
-	auto& directionalLightRef = scene_->getAllDirectionalLights();
-	for (unsigned int i = 0; i < directionalLightRef.size(); ++i)
-	{
-		DirectionalLight light;
-		light.direction = (const glm::vec3&) directionalLightRef[i].getDirection();
-		light.intensity = (const glm::vec3&) directionalLightRef[i].getIntensity();
-		light.padding1 = 0.0f;
-		light.padding2 = 0.0f;
-		lightingData.directionalLight[i] = light;
-	}
-	lightingData.maxDirectionalLights = (float)directionalLightRef.size();
-
-	auto& spotlightRef = scene_->getAllSpotLights();
-	for (unsigned int i = 0; i < spotlightRef.size(); ++i)
-	{
-		SpotLight light;
-		light.position = (const glm::vec3&) spotlightRef[i].getPosition();
-		light.direction = (const glm::vec3&) spotlightRef[i].getDirection();
-		light.intensity = (const glm::vec3&) spotlightRef[i].getIntensity();
-		light.range = spotlightRef[i].getRange();
-		light.coneAngle = spotlightRef[i].getConeAngleDegrees();
-		light.castShadow = spotlightRef[i].getCastShadow();
-
-		lightingData.spotLight[i] = light;
-	}
-	lightingData.maxDirectionalLights = (float)directionalLightRef.size();
-
-
-	lightingData.ambientLight.ambient_light = (const glm::vec3&)scene_->getAmbientLightIntensity();
-
-	CheckError();
-#pragma endregion 
 
 #pragma region UBO 
 	
@@ -522,40 +537,29 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-	glGenBuffers(1, &materialDataUBO);
-	glBindBuffer(GL_UNIFORM_BUFFER, materialDataUBO);
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(MaterialDataBlock), &materialData, GL_STATIC_DRAW);
 
 	glGenBuffers(1, &pbrMaterialHandle);
 	glBindBuffer(GL_UNIFORM_BUFFER, pbrMaterialHandle);
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(PBRMaterialDataBlock), &pbrMaterialData, GL_STATIC_DRAW);
-
+	CheckError();
 	ambientLightShader->Bind();
-	glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialDataUBO);
-	glUniformBlockBinding(ambientLightShader->GetShaderID(), glGetUniformBlockIndex(ambientLightShader->GetShaderID(), "MaterialDataBlock"), 1);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 2, pbrMaterialHandle);
-	glUniformBlockBinding(ambientLightShader->GetShaderID(), glGetUniformBlockIndex(ambientLightShader->GetShaderID(), "PBRMaterialDataBlock"), 2);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, pbrMaterialHandle);
+	glUniformBlockBinding(ambientLightShader->GetShaderID(), glGetUniformBlockIndex(ambientLightShader->GetShaderID(), "PBRMaterialDataBlock"), 1);
 	ambientLightShader->Unbind();
 
 	directionalLightShader->Bind();
-	glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialDataUBO);
-	glUniformBlockBinding(directionalLightShader->GetShaderID(), glGetUniformBlockIndex(directionalLightShader->GetShaderID(), "MaterialDataBlock"), 1);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 2, pbrMaterialHandle);
-	glUniformBlockBinding(directionalLightShader->GetShaderID(), glGetUniformBlockIndex(directionalLightShader->GetShaderID(), "PBRMaterialDataBlock"), 2);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, pbrMaterialHandle);
+	glUniformBlockBinding(directionalLightShader->GetShaderID(), glGetUniformBlockIndex(directionalLightShader->GetShaderID(), "PBRMaterialDataBlock"), 1);
 	directionalLightShader->Unbind();
 
 	pointLightShader->Bind();
-	glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialDataUBO);
-	glUniformBlockBinding(pointLightShader->GetShaderID(), glGetUniformBlockIndex(pointLightShader->GetShaderID(), "MaterialDataBlock"), 1);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 2, pbrMaterialHandle);
-	glUniformBlockBinding(pointLightShader->GetShaderID(), glGetUniformBlockIndex(pointLightShader->GetShaderID(), "PBRMaterialDataBlock"), 2);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, pbrMaterialHandle);
+	glUniformBlockBinding(pointLightShader->GetShaderID(), glGetUniformBlockIndex(pointLightShader->GetShaderID(), "PBRMaterialDataBlock"), 1);
 	pointLightShader->Unbind();
 
 	spotlightShader->Bind();
-	glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialDataUBO);
-	glUniformBlockBinding(spotlightShader->GetShaderID(), glGetUniformBlockIndex(spotlightShader->GetShaderID(), "MaterialDataBlock"), 1);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 2, pbrMaterialHandle);
-	glUniformBlockBinding(spotlightShader->GetShaderID(), glGetUniformBlockIndex(spotlightShader->GetShaderID(), "PBRMaterialDataBlock"), 2);
+	glUniformBlockBinding(spotlightShader->GetShaderID(), glGetUniformBlockIndex(spotlightShader->GetShaderID(), "PBRMaterialDataBlock"), 1);
 	spotlightShader->Unbind();
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 #pragma endregion 
@@ -960,9 +964,12 @@ void MyView::windowViewRender(tygra::Window * window)
 	glBindFramebuffer(GL_FRAMEBUFFER, gbuffer_fbo_);
 	glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 	
-	glBindVertexArray(vao);
+
+
+	
 	
 #pragma region Update data changed this frame
+	glBindVertexArray(vao);
 	int counter = 0;
 	for (const auto &mesh : meshes_)
 	{
@@ -982,15 +989,25 @@ void MyView::windowViewRender(tygra::Window * window)
 	glBindBuffer(GL_ARRAY_BUFFER, instance_vbo);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(glm::mat4) * (matrices.size()), glm::value_ptr(matrices[0]));
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
-
+	glBindVertexArray(0);
+	
+	glBindVertexArray(light_sphere_mesh_.vao);
 	const auto& pointLights = scene_->getAllPointLights();
 	for (int i = 0; i < pointLights.size(); ++i)
 	{
 		lightingData.pointLight[i].position = (const glm::vec3&)pointLights[i].getPosition();
 		lightingData.pointLight[i].range = pointLights[i].getRange();
 		lightingData.pointLight[i].intensity = (const glm::vec3&)pointLights[i].getIntensity();		
+		glm::mat4 matrix = glm::mat4(1.0);
+		matrix = glm::translate(matrix, lightingData.pointLight[i].position);
+		matrix = glm::scale(matrix, glm::vec3(lightingData.pointLight[i].range, lightingData.pointLight[i].range, lightingData.pointLight[i].range));
+		pointLightMatricies[i] = matrix;
 	}
 	lightingData.ambientLight.ambient_light = (const glm::vec3&)scene_->getAmbientLightIntensity();
+	glBindBuffer(GL_ARRAY_BUFFER, pointLightMatrix_vbo);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(glm::mat4) * (pointLightMatricies.size()), glm::value_ptr(pointLightMatricies[0]));
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindVertexArray(light_sphere_mesh_.vao);
 	
 	const auto& directionalLights = scene_->getAllDirectionalLights();
 	for (int i = 0; i < directionalLights.size(); ++i)
@@ -1024,6 +1041,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	glStencilMask(0xFF);
 
 #pragma region Draw call for rendering normal sponza
+	glBindVertexArray(vao);
 	gbufferShadr->Bind(); 
 	glUniformMatrix4fv(glGetUniformLocation(gbufferShadr->GetShaderID(), "projection_view"), 1, GL_FALSE, glm::value_ptr(projection_view));
 
@@ -1102,8 +1120,6 @@ void MyView::windowViewRender(tygra::Window * window)
 	ambientLightShader->Unbind();
 	
 
-	
-
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE);
 	glBlendEquation(GL_FUNC_ADD);
@@ -1128,17 +1144,8 @@ void MyView::windowViewRender(tygra::Window * window)
 	pointLightShader->SetUniformMatrix4FValue("projection_view", projection_view);
 	pointLightShader->SetUniformIntValue("useTextures", useTextures);
 	glBindBuffer(GL_UNIFORM_BUFFER, pbrMaterialHandle);
-	for (int i = 0; i < pointLights.size(); ++i)
-	{
-		glm::mat4 model_matrix = glm::mat4(1);
-		model_matrix = glm::translate(model_matrix, (const glm::vec3&)pointLights[i].getPosition());
-		model_matrix = glm::scale(model_matrix, glm::vec3(pointLights[i].getRange()));
-
-		pointLightShader->SetUniformMatrix4FValue("model_matrix", model_matrix);
-		pointLightShader->SetUniformIntValue("currentPointLight", i);
-		glDrawElements(GL_TRIANGLES, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
-	}
-
+	
+	glDrawElementsInstanced(GL_TRIANGLES, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, nullptr, pointLightMatricies.size());
 	
 	pointLightShader->Unbind();
 	glBindVertexArray(0);

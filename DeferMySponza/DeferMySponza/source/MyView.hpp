@@ -1,5 +1,5 @@
 #pragma once
-#define TGL_TARGET_GL_4_4
+#define TGL_TARGET_GL_4_5
 #include <scene/scene_fwd.hpp>
 #include <tygra/WindowViewDelegate.hpp>
 #include <tgl/tgl.h>
@@ -87,38 +87,18 @@ struct DataBlock
 	float maxSpotlights;
 };
 
-struct Material
-{
-	glm::vec3 diffuseColour;
-	float vertexShineyness;
-	glm::vec3 specularColour;
-	int diffuseTextureID;
-};
-
 struct PBRMaterial
 {
-	glm::vec3 diffuseColour = glm::vec3(0.5f, 0.5f, 0.5f);
-	float metallic = 0.5f;
-	glm::vec3 specularColour = glm::vec3(0.5f, 0.5f, 0.5f);
+	glm::vec3 diffuseColour;
+	float metallic;
+	glm::vec3 specularColour;
 	float roughness = 0.5f;
-	float vertexShineyness = 0.5f;
-	float ambientOcclusion = 0.5f;
-	int diffuseTextureID = 0;
-
-	PBRMaterial operator=(const Material& mat) {
-		PBRMaterial pbrMat;
-		pbrMat.diffuseColour = mat.diffuseColour;
-		pbrMat.vertexShineyness = mat.vertexShineyness;
-		pbrMat.specularColour = mat.specularColour;
-		pbrMat.diffuseTextureID = mat.diffuseTextureID;
-		return pbrMat;
-	}
+	float vertexShineyness ;
+	float ambientOcclusion;
+	int diffuseTextureID;
+	float padding = 0.0f;
 };
 
-struct MaterialDataBlock
-{
-	Material materials[30];
-};
 
 struct PBRMaterialDataBlock
 {
@@ -159,7 +139,7 @@ private:
 	std::map<scene::MeshId, MeshGL> meshes_;
 	std::unordered_map<std::string, GLuint> textures;
 	std::unordered_map<std::string, GLuint> uniforms;
-	std::vector<glm::mat4> matrices;
+	std::vector<glm::mat4> matrices, pointLightMatricies;
 
 	GLuint vao; // VertexArrayObject for the shape's vertex array settings
 	GLuint vertex_vbo;
@@ -167,6 +147,8 @@ private:
 	GLuint instance_vbo; // VertexBufferObject for the model xforms
 	GLuint material_vbo;
 	GLuint commandBuffer;
+
+	GLuint pointLightMatrix_vbo;
 
 #pragma region GBuffer
 	struct Mesh
@@ -214,10 +196,7 @@ private:
 
 	DataBlock lightingData; 
 	GLuint lightDataUBO;
-
-	MaterialDataBlock materialData;
-	GLuint materialDataUBO;
-
+	
 	PBRMaterialDataBlock pbrMaterialData;
 	GLuint pbrMaterialHandle;
 	bool usePBRMaterials = true;
