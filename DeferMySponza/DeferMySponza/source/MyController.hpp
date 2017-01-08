@@ -52,6 +52,6 @@ private:
     scene::Context * scene_;
 
     bool camera_turn_mode_;
-    float camera_move_speed_[4];
+    float camera_move_speed_[6];
     float camera_rotate_speed_[2];
 };

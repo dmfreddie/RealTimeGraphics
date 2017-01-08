@@ -130,6 +130,7 @@ private:
 
     void windowViewRender(tygra::Window * window) override;
 	void LoadTextureArray(std::vector<std::string>& textureNames, Shader* shader, GLuint& textureArrayHandle, const char* samplerHandle);
+	void LoadBlankTextureArray(int textureCount, Shader* shader, GLuint& textureArrayHandle, const char* samplerHandle);
 	void SetFromExisteingTextureArray(GLuint& textureArrayHandle, Shader* shader, const char* samplerHandle);
 
 	bool CheckError();

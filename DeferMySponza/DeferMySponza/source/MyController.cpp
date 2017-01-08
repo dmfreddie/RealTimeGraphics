@@ -12,6 +12,8 @@ MyController::MyController() : camera_turn_mode_(false)
     camera_move_speed_[1] = 0;
     camera_move_speed_[2] = 0;
     camera_move_speed_[3] = 0;
+    camera_move_speed_[4] = 0;
+    camera_move_speed_[5] = 0;
     camera_rotate_speed_[0] = 0;
     camera_rotate_speed_[1] = 0;
     scene_ = new scene::Context();
@@ -102,6 +104,12 @@ void MyController::windowControlKeyboardChanged(tygra::Window * window,
     case 'S':
         camera_move_speed_[3] = down ? 1.f : 0.f;
         break;
+	case 'Q':
+		camera_move_speed_[4] = down ? 1.f : 0.f;
+		break;
+	case 'E':
+		camera_move_speed_[5] = down ? 1.f : 0.f;
+		break;
     }
 
     updateCameraTranslation();
@@ -197,10 +205,9 @@ void MyController::windowControlGamepadButtonChanged(tygra::Window * window,
 void MyController::updateCameraTranslation()
 {
     const float key_speed = 100.f;
-    const float sideward_speed = -key_speed * camera_move_speed_[0]
-        + key_speed * camera_move_speed_[1];
-    const float forward_speed = key_speed * camera_move_speed_[2]
-        - key_speed * camera_move_speed_[3];
+    const float sideward_speed = -key_speed * camera_move_speed_[0] + key_speed * camera_move_speed_[1];
+	const float upward_speed = -key_speed * camera_move_speed_[4] + key_speed * camera_rotate_speed_[5];
+    const float forward_speed = key_speed * camera_move_speed_[2] - key_speed * camera_move_speed_[3];
     scene_->getCamera().setLinearVelocity(
-        scene::Vector3(sideward_speed, 0, forward_speed));
+        scene::Vector3(sideward_speed, upward_speed, forward_speed));
 }

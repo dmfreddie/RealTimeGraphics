@@ -49,6 +49,77 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	*			This section of code creates a fullscreen quad to be used
 	*           when computing global illumination effects (e.g. ambient)
 	*/
+
+#pragma region Lighting setup	
+
+	//Create the light vector so there will be memory already reserved that can just be overwritten if values have been changed. This has been done on 
+	//start for effiences in the constant render loop function.
+	auto& pointLightsRef = scene_->getAllPointLights();
+	for (unsigned int i = 0; i < pointLightsRef.size(); ++i)
+	{
+		PointLight light;
+		light.position = (const glm::vec3&) pointLightsRef[i].getPosition();
+		light.range = pointLightsRef[i].getRange();
+		light.intensity = (const glm::vec3&) pointLightsRef[i].getIntensity();
+		light.padding = 0.0f;
+		lightingData.pointLight[i] = light;
+		glm::mat4 matrix = glm::mat4(1.0);
+		matrix = glm::translate(matrix, light.position);
+		matrix = glm::scale(matrix, glm::vec3(light.range, light.range, light.range));
+		pointLightMatricies.push_back(matrix);
+	}
+	lightingData.maxPointLights = (float)pointLightsRef.size();
+
+
+	auto& directionalLightRef = scene_->getAllDirectionalLights();
+	for (unsigned int i = 0; i < directionalLightRef.size(); ++i)
+	{
+		DirectionalLight light;
+		light.direction = (const glm::vec3&) directionalLightRef[i].getDirection();
+		light.intensity = (const glm::vec3&) directionalLightRef[i].getIntensity();
+		light.padding1 = 0.0f;
+		light.padding2 = 0.0f;
+		lightingData.directionalLight[i] = light;
+	}
+	lightingData.maxDirectionalLights = (float)directionalLightRef.size();
+
+	auto& spotlightRef = scene_->getAllSpotLights();
+	for (unsigned int i = 0; i < spotlightRef.size(); ++i)
+	{
+		SpotLight light;
+		light.position = (const glm::vec3&) spotlightRef[i].getPosition();
+		light.direction = (const glm::vec3&) spotlightRef[i].getDirection();
+		light.intensity = (const glm::vec3&) spotlightRef[i].getIntensity();
+		light.intensity /= 2;
+		light.range = spotlightRef[i].getRange();
+		light.coneAngle = spotlightRef[i].getConeAngleDegrees();
+		light.castShadow = spotlightRef[i].getCastShadow();
+
+		lightingData.spotLight[i] = light;
+
+		glm::mat4 rotationMatrix = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0, 1, 0));
+		rotationMatrix = glm::inverse(rotationMatrix);
+		auto transDir = (const glm::vec3&)spotlightRef[i].getPosition();
+		transDir *= -1;
+		glm::mat4 translationMatrix = glm::mat4(1.0);
+		translationMatrix = glm::translate(translationMatrix, transDir);
+		glm::mat4 scaleMatrix = glm::mat4(1.0);
+		scaleMatrix = glm::scale(scaleMatrix, glm::vec3(spotlightRef[i].getRange()));
+
+		glm::mat4 model_matrix = glm::mat4(1.0);
+		model_matrix = translationMatrix * rotationMatrix * scaleMatrix;
+		spotlightMatricies.push_back(model_matrix);
+	}
+	lightingData.maxDirectionalLights = (float)directionalLightRef.size();
+
+
+	lightingData.ambientLight.ambient_light = (const glm::vec3&)scene_->getAmbientLightIntensity();
+
+	//LoadBlankTextureArray(spotlightRef.size(), spotlightShader, shadowmap_tex, "shadowMap");
+
+	CheckError();
+#pragma endregion 
+
 #pragma region Create Fullscreen quad
 		std::vector<glm::vec2> vertices(4);
 		vertices[0] = glm::vec2(-1, -1);
@@ -108,7 +179,17 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		*           with a spot light source.
 		*/
 #pragma region Create cone mesh
-		tsl::IndexedMeshPtr coneMesh = tsl::createConePtr(1.0f, 1.0f, 12);
+		float coneAngle = 0.0f;
+		float maxRange = 0.0f;
+		for (int i = 0; i < spotlightRef.size(); ++i)
+		{
+			if (spotlightRef[i].getConeAngleDegrees() > coneAngle)
+				coneAngle = spotlightRef[i].getConeAngleDegrees();
+			if (spotlightRef[i].getRange() > maxRange)
+				maxRange = spotlightRef[i].getRange();
+		}
+		float radius = maxRange * sin(coneAngle);
+		tsl::IndexedMeshPtr coneMesh = tsl::createConePtr(radius, maxRange, 12);
 		coneMesh = tsl::cloneIndexedMeshAsTriangleListPtr(coneMesh.get());
 
 		light_cone_mesh_.element_count = coneMesh->indexCount();
@@ -171,74 +252,11 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	SetFromExisteingTextureArray(diffuse_texture_array_handle, directionalLightShader, "textureArray");
 	SetFromExisteingTextureArray(diffuse_texture_array_handle, pointLightShader, "textureArray");
 	SetFromExisteingTextureArray(diffuse_texture_array_handle, spotlightShader, "textureArray");
+
+	
 #pragma endregion 
 
-#pragma region Lighting setup	
 
-	//Create the light vector so there will be memory already reserved that can just be overwritten if values have been changed. This has been done on 
-	//start for effiences in the constant render loop function.
-	auto& pointLightsRef = scene_->getAllPointLights();
-	for (unsigned int i = 0; i < pointLightsRef.size(); ++i)
-	{
-		PointLight light;
-		light.position = (const glm::vec3&) pointLightsRef[i].getPosition();
-		light.range = pointLightsRef[i].getRange();
-		light.intensity = (const glm::vec3&) pointLightsRef[i].getIntensity();
-		light.padding = 0.0f;
-		lightingData.pointLight[i] = light;
-		glm::mat4 matrix = glm::mat4(1.0);
-		matrix = glm::translate(matrix, light.position);
-		matrix = glm::scale(matrix, glm::vec3(light.range, light.range, light.range));
-		pointLightMatricies.push_back(matrix);
-	}
-	lightingData.maxPointLights = (float)pointLightsRef.size();
-
-
-	auto& directionalLightRef = scene_->getAllDirectionalLights();
-	for (unsigned int i = 0; i < directionalLightRef.size(); ++i)
-	{
-		DirectionalLight light;
-		light.direction = (const glm::vec3&) directionalLightRef[i].getDirection();
-		light.intensity = (const glm::vec3&) directionalLightRef[i].getIntensity();
-		light.padding1 = 0.0f;
-		light.padding2 = 0.0f;
-		lightingData.directionalLight[i] = light;
-	}
-	lightingData.maxDirectionalLights = (float)directionalLightRef.size();
-
-	auto& spotlightRef = scene_->getAllSpotLights();
-	for (unsigned int i = 0; i < spotlightRef.size(); ++i)
-	{
-		SpotLight light;
-		light.position = (const glm::vec3&) spotlightRef[i].getPosition();
-		light.direction = (const glm::vec3&) spotlightRef[i].getDirection();
-		light.intensity = (const glm::vec3&) spotlightRef[i].getIntensity();
-		light.range = spotlightRef[i].getRange();
-		light.coneAngle = spotlightRef[i].getConeAngleDegrees();
-		light.castShadow = spotlightRef[i].getCastShadow();
-
-		lightingData.spotLight[i] = light;
-
-		glm::mat4 rotationMatrix = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0, 1, 0));
-		rotationMatrix = glm::inverse(rotationMatrix);
-		auto transDir = (const glm::vec3&)spotlightRef[i].getPosition();
-		transDir *= -1;
-		glm::mat4 translationMatrix = glm::mat4(1.0);
-		translationMatrix = glm::translate(translationMatrix, transDir);
-		glm::mat4 scaleMatrix = glm::mat4(1.0);
-		scaleMatrix = glm::scale(scaleMatrix, glm::vec3(spotlightRef[i].getRange()));
-
-		glm::mat4 model_matrix = glm::mat4(1.0);
-		model_matrix = translationMatrix * rotationMatrix * scaleMatrix;
-		spotlightMatricies.push_back(model_matrix);
-	}
-	lightingData.maxDirectionalLights = (float)directionalLightRef.size();
-
-
-	lightingData.ambientLight.ambient_light = (const glm::vec3&)scene_->getAmbientLightIntensity();
-
-	CheckError();
-#pragma endregion 
 
 #pragma region Load the mesh into buffers
 	scene::GeometryBuilder builder;
@@ -662,6 +680,42 @@ void MyView::LoadTextureArray(std::vector<std::string>& textureNames, Shader* sh
 	shader->Unbind();
 }
 
+void MyView::LoadBlankTextureArray(int textureCount, Shader* shader, GLuint& textureArrayHandle, const char* samplerHandle)
+{
+	shader->Bind();
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glGenTextures(1, &textureArrayHandle);
+	glActiveTexture(GL_TEXTURE3);
+
+	glBindTexture(GL_TEXTURE_2D_ARRAY, textureArrayHandle);
+	auto textureArrayLocation = shader->GetUniformLocation(samplerHandle);
+	glUniform1i(textureArrayLocation, 3);
+
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+	glTexStorage3D(GL_TEXTURE_2D_ARRAY, 11, GL_RGBA8, SHADOW_WIDTH, SHADOW_HEIGHT, textureCount);
+	GLenum pixel_formats[] = { 0, GL_RED, GL_RG, GL_RGB, GL_RGBA };
+	for (unsigned int i = 0; i < textureCount; ++i)
+	{
+		//Specify i-essim image
+		glTexSubImage3D(GL_TEXTURE_2D_ARRAY,
+			0,                     //Mipmap number
+			0, 0, i,                 //xoffset, yoffset, zoffset
+			SHADOW_WIDTH, SHADOW_HEIGHT, 1,                 //width, height, depth
+			GL_DEPTH_COMPONENT,                //format
+			GL_FLOAT,      //type
+			nullptr);                //pointer to data
+		glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
+		GLenum err = glGetError();
+		if (err != GL_NO_ERROR)
+			std::cerr << err << std::endl;
+	}
+	shader->Unbind();
+}
+
 void MyView::SetFromExisteingTextureArray(GLuint& textureArrayHandle, Shader* shader, const char* samplerHandle)
 {
 	shader->Bind();
@@ -771,16 +825,7 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	CheckError();
 
 #pragma region ShadowMaps
-
-	//SetPlayer : bob ToPos : (3, 4, 5) When : time > 9;
-	/*glBindTexture(GL_TEXTURE_2D, shadowmap_tex);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);*/
-
-
+	
 	glBindTexture(GL_TEXTURE_2D, shadowmap_tex);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -798,6 +843,7 @@ void MyView::windowViewDidReset(tygra::Window * window,
 		shaders[i]->Unbind();
 	}
 
+	//glBindTexture(GL_TEXTURE_2D, shadowmap_tex);
 	glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFrameBuffer);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowmap_tex, 0);
 	glDrawBuffer(GL_NONE);
@@ -978,10 +1024,10 @@ void MyView::windowViewDidStop(tygra::Window * window)
 
 void MyView::windowViewRender(tygra::Window * window)
 {
-    assert(scene_ != nullptr);
+	assert(scene_ != nullptr);
 
-   // glClearColor(0.29f, 0.f, 0.51f, 0.f);
-    glClearColor(0.f, 0.f, 0.f, 0.f);
+	// glClearColor(0.29f, 0.f, 0.51f, 0.f);
+	glClearColor(0.f, 0.f, 0.f, 0.f);
 
 	GLint viewport_size[4];
 	glGetIntegerv(GL_VIEWPORT, viewport_size);
@@ -995,11 +1041,11 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	glBindFramebuffer(GL_FRAMEBUFFER, gbuffer_fbo_);
 	glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-	
 
 
-	
-	
+
+
+
 #pragma region Update data changed this frame
 	glBindVertexArray(vao);
 	int counter = 0;
@@ -1022,14 +1068,14 @@ void MyView::windowViewRender(tygra::Window * window)
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(glm::mat4) * (matrices.size()), glm::value_ptr(matrices[0]));
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
-	
+
 	glBindVertexArray(light_sphere_mesh_.vao);
 	const auto& pointLights = scene_->getAllPointLights();
 	for (int i = 0; i < pointLights.size(); ++i)
 	{
 		lightingData.pointLight[i].position = (const glm::vec3&)pointLights[i].getPosition();
 		lightingData.pointLight[i].range = pointLights[i].getRange();
-		lightingData.pointLight[i].intensity = (const glm::vec3&)pointLights[i].getIntensity();		
+		lightingData.pointLight[i].intensity = (const glm::vec3&)pointLights[i].getIntensity();
 		glm::mat4 matrix = glm::mat4(1.0);
 		matrix = glm::translate(matrix, lightingData.pointLight[i].position);
 		matrix = glm::scale(matrix, glm::vec3(lightingData.pointLight[i].range, lightingData.pointLight[i].range, lightingData.pointLight[i].range));
@@ -1040,7 +1086,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(glm::mat4) * (pointLightMatricies.size()), glm::value_ptr(pointLightMatricies[0]));
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindVertexArray(light_sphere_mesh_.vao);
-	
+
 	const auto& directionalLights = scene_->getAllDirectionalLights();
 	for (int i = 0; i < directionalLights.size(); ++i)
 	{
@@ -1060,14 +1106,17 @@ void MyView::windowViewRender(tygra::Window * window)
 		transDir *= -1;
 		glm::mat4 translationMatrix = glm::mat4(1.0);
 		translationMatrix = glm::translate(translationMatrix, transDir);
-		glm::mat4 scaleMatrix = glm::mat4(1.0);
-		scaleMatrix = glm::scale(scaleMatrix, glm::vec3(spotlightRef[i].getRange()));
+		//glm::mat4 scaleMatrix = glm::mat4(1.0);
+		//scaleMatrix = glm::scale(scaleMatrix, glm::vec3(spotlightRef[i].getRange()));
 
 		glm::mat4 model_matrix = glm::mat4(1.0);
-		model_matrix = translationMatrix * rotationMatrix * scaleMatrix;
+		model_matrix = translationMatrix * rotationMatrix;// *scaleMatrix;
 		spotlightMatricies[i] = model_matrix;
 	}
-	
+	glBindBuffer(GL_ARRAY_BUFFER, spotLightMatrix_vbo);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(glm::mat4) * (spotlightMatricies.size()), glm::value_ptr(spotlightMatricies[0]));
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
 	lightingData.cameraPosition = (const glm::vec3&)scene_->getCamera().getPosition();
 	lightingData.maxPointLights = (float)pointLights.size();
 	lightingData.maxDirectionalLights = (float)directionalLights.size();
@@ -1087,7 +1136,7 @@ void MyView::windowViewRender(tygra::Window * window)
 
 #pragma region Draw call for rendering normal sponza
 	glBindVertexArray(vao);
-	gbufferShadr->Bind(); 
+	gbufferShadr->Bind();
 	glUniformMatrix4fv(glGetUniformLocation(gbufferShadr->GetShaderID(), "projection_view"), 1, GL_FALSE, glm::value_ptr(projection_view));
 
 	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
@@ -1102,49 +1151,39 @@ void MyView::windowViewRender(tygra::Window * window)
 	gbufferShadr->Unbind();
 
 	//// --------------------------------------------------------- SHADOWS -----------------------------------------------------------
+	/*glDisable(GL_STENCIL_TEST);
+	glEnable(GL_DEPTH_TEST);
+	glDisable(GL_CULL_FACE);
+	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+	glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFrameBuffer);
+	glClear(GL_DEPTH_BUFFER_BIT);
 
-	//glDisable(GL_STENCIL_TEST);
-	//glEnable(GL_DEPTH_TEST);
-	//glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-	//glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFrameBuffer);
-	//glClear(GL_DEPTH_BUFFER_BIT);
+	glm::mat4 lightPorjection = glm::perspective(glm::radians(spotlightRef[0].getConeAngleDegrees()), 1.0f, 0.01f, spotlightRef[0].getRange());
+	glm::mat4 lightView = glm::lookAt((const glm::vec3&)spotlightRef[0].getPosition(), (const glm::vec3&)spotlightRef[0].getPosition() + (const glm::vec3&)spotlightRef[0].getDirection(), glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::mat4 light_projection_view = lightPorjection * lightView;
 
-	//glm::mat4 lightProjection = glm::ortho(-200.0f, 200.0f, -200.0f, 200.0f, -200.0f, 200.0f);
-	//glm::mat4 lightPresPorojection =  glm::perspective(glm::radians(spotlightRef[0].getConeAngleDegrees()), (float)(SHADOW_WIDTH/ SHADOW_HEIGHT), 1.f, 1000.f);
-	//glm::mat4 lightViewMat = glm::lookAt((const glm::vec3&)directionalLights[0].getDirection(), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-	////glm::mat4 lightViewMat = glm::lookAt((const glm::vec3&)spotlightRef[0].getDirection(), (const glm::vec3&)spotlightRef[0].getPosition(), glm::vec3(0, 1, 0));
-	//
-	//glm::mat4 rotationMatrix = glm::lookAt((const glm::vec3&)spotlightRef[0].getPosition(), (const glm::vec3&)spotlightRef[0].getPosition() + (const glm::vec3&)spotlightRef[0].getDirection(), glm::vec3(0, 1, 0));
-	//rotationMatrix = glm::inverse(rotationMatrix);
-	//auto transDir = (const glm::vec3&)spotlightRef[0].getPosition();
-	//transDir *= -1;
-	//glm::mat4 translationMatrix = glm::mat4(1.0);
-	//translationMatrix = glm::translate(translationMatrix, transDir);
-	//glm::mat4 scaleMatrix = glm::mat4(1.0);
-	//scaleMatrix = glm::scale(scaleMatrix, glm::vec3(spotlightRef[0].getRange()));
+	shadowDepth_Shader->Bind();
 
-	//glm::mat4 model_matrix = glm::mat4(1.0);
-	//model_matrix = translationMatrix * rotationMatrix * scaleMatrix;
+	shadowDepth_Shader->SetUniformMatrix4FValue("lightSpaceMatrix", light_projection_view);
+	glBindVertexArray(vao);
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
+	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, (GLsizei)meshes_.size(), 0);
+	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+	glBindVertexArray(0);
+	shadowDepth_Shader->Unbind();
 
-	//glm::mat4 lightSpaceMatrix = lightPresPorojection * model_matrix;
-	//
-	//shadowDepth_Shader->Bind();
+	glViewport(0, 0, viewport_size[2], viewport_size[3]);
 
-	//shadowDepth_Shader->SetUniformMatrix4FValue("lightSpaceMatrix", lightSpaceMatrix);
-
-	//glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
-	//glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, (GLsizei)meshes_.size(), 0);
-	//glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
-
-	//shadowDepth_Shader->Unbind();
-	//
-	//glViewport(0, 0, viewport_size[2], viewport_size[3]);
-
-	//glDisable(GL_DEPTH_TEST);
+	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_STENCIL_TEST);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glEnable(GL_BLEND);
+	glEnable(GL_CULL_FACE);
+	*/
 	//// --------------------------------------------------------- SHADOWS -----------------------------------------------------------
 	// --------------------------------------------------------- LIGHTING -----------------------------------------------------------
 
-	
+
 
 	glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
 
@@ -1156,14 +1195,14 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	glBindBuffer(GL_UNIFORM_BUFFER, pbrMaterialHandle);
 	glBindVertexArray(light_quad_mesh_.vao);
-	
-	
+
+
 	ambientLightShader->Bind();
 	glBindBuffer(GL_UNIFORM_BUFFER, pbrMaterialHandle);
 	ambientLightShader->SetUniformIntValue("useTextures", useTextures);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 	ambientLightShader->Unbind();
-	
+
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE);
@@ -1176,12 +1215,12 @@ void MyView::windowViewRender(tygra::Window * window)
 	directionalLightShader->SetUniformIntValue("useTextures", useTextures);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
 	directionalLightShader->Unbind();
-	
 
-	glBindVertexArray(0);	
+
+	glBindVertexArray(0);
 	glEnable(GL_CULL_FACE);
 	glCullFace(GL_FRONT);
-	
+
 
 	glBindVertexArray(light_sphere_mesh_.vao);
 
@@ -1189,92 +1228,73 @@ void MyView::windowViewRender(tygra::Window * window)
 	pointLightShader->SetUniformMatrix4FValue("projection_view", projection_view);
 	pointLightShader->SetUniformIntValue("useTextures", useTextures);
 	glBindBuffer(GL_UNIFORM_BUFFER, pbrMaterialHandle);
-	
+
 	glDrawElementsInstanced(GL_TRIANGLES, light_sphere_mesh_.element_count, GL_UNSIGNED_INT, nullptr, pointLightMatricies.size());
-	
+
 	pointLightShader->Unbind();
 	glBindVertexArray(0);
 
 
-	glBindVertexArray(light_cone_mesh_.vao);
+	// ----------------------------------------- SPOTLIGHT SHADOWS -------------------------------------------------------
+	for (int i = 0; i < lightingData.maxSpotlights; ++i)
+	{
 
-	spotlightShader->Bind();
-	spotlightShader->SetUniformMatrix4FValue("projection_view", projection_view);
-	spotlightShader->SetUniformIntValue("useTextures", useTextures);
-	glBindBuffer(GL_UNIFORM_BUFFER, pbrMaterialHandle);
+		glDisable(GL_STENCIL_TEST);
+		glDisable(GL_CULL_FACE);
+		glDepthMask(GL_TRUE);
+		glDisable(GL_BLEND);
+		glEnable(GL_DEPTH_TEST);
 
-	glDrawElementsInstanced(GL_TRIANGLES, light_cone_mesh_.element_count, GL_UNSIGNED_INT, nullptr, spotlightMatricies.size());
+		glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+		glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFrameBuffer);
 
-	spotlightShader->Unbind();
-	glBindVertexArray(0);
 
-	//for (int i = 0; i < spotlightRef.size(); ++i)
-	//{
-	//	// --------------------------------------------------------- SHADOWS -----------------------------------------------------------
 
-	//	glDisable(GL_STENCIL_TEST);
-	//	glEnable(GL_DEPTH_TEST);
-	//	glDisable(GL_CULL_FACE);
-	//	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-	//	glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFrameBuffer);
-	//	glClear(GL_DEPTH_BUFFER_BIT);
-	//	glDepthMask(GL_TRUE);
+		glClear(GL_DEPTH_BUFFER_BIT);
 
-	//	glBindVertexArray(vao);
+		glm::mat4 lightPorjection = glm::perspective(glm::radians(spotlightRef[i].getConeAngleDegrees()), 1.0f, 0.01f, spotlightRef[i].getRange());
+		glm::mat4 lightView = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0.0f, 1.0f, 0.0f));
+		glm::mat4 light_projection_view = lightPorjection * lightView;
 
-	//	//glm::mat4 lightProjection = glm::ortho(-200.0f, 200.0f, -200.0f, 200.0f, -200.0f, 200.0f);
-	//	glm::mat4 lightPresPorojection = glm::perspective(glm::radians(spotlightRef[i].getConeAngleDegrees()), (float)(SHADOW_WIDTH / SHADOW_HEIGHT), 1.f, 1000.f);
-	//	//glm::mat4 lightViewMat = glm::lookAt((const glm::vec3&)directionalLights[0].getDirection(), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
-	//	glm::mat4 lightViewMat = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0, 1, 0));
+		shadowDepth_Shader->Bind();
 
-	//	glm::mat4 rotationMatrix = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0, 1, 0));
-	//	rotationMatrix = glm::inverse(rotationMatrix);
-	//	auto transDir = (const glm::vec3&)spotlightRef[i].getPosition();
-	//	transDir *= -1;
-	//	glm::mat4 translationMatrix = glm::mat4(1.0);
-	//	translationMatrix = glm::translate(translationMatrix, transDir);
-	//	glm::mat4 scaleMatrix = glm::mat4(1.0);
-	//	scaleMatrix = glm::scale(scaleMatrix, glm::vec3(spotlightRef[i].getRange()));
+		shadowDepth_Shader->SetUniformMatrix4FValue("lightSpaceMatrix", light_projection_view);
 
-	//	glm::mat4 model_matrix = glm::mat4(1.0);
-	//	model_matrix = translationMatrix * rotationMatrix * scaleMatrix;
+		glBindVertexArray(vao);
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
+		glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, (GLsizei)meshes_.size(), 0);
+		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+		glBindVertexArray(0);
+		shadowDepth_Shader->Unbind();
 
-	//	glm::mat4 lightSpaceMatrix = lightPresPorojection * model_matrix;
+		
 
-	//	shadowDepth_Shader->Bind();
+		
+		glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
+		glViewport(0, 0, viewport_size[2], viewport_size[3]);
+		glDisable(GL_DEPTH_TEST);
+		glEnable(GL_STENCIL_TEST);
+		glEnable(GL_CULL_FACE);
+		glDepthMask(GL_FALSE);
+		glEnable(GL_BLEND);
+		// ----------------------------------------- SPOTLIGHT SHADOWS -------------------------------------------------------
 
-	//	shadowDepth_Shader->SetUniformMatrix4FValue("lightSpaceMatrix", lightSpaceMatrix);
+		glBindVertexArray(light_cone_mesh_.vao);
 
-	//	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
-	//	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, (GLsizei)meshes_.size(), 0);
-	//	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+		spotlightShader->Bind();
+		spotlightShader->SetUniformMatrix4FValue("projection_view", projection_view);
+		spotlightShader->SetUniformMatrix4FValue("model_matrix_Uniform", spotlightMatricies[i]);
+		spotlightShader->SetUniformMatrix4FValue("lightSpaceMatrixUniform", light_projection_view);
+		spotlightShader->SetUniformIntValue("useTextures", useTextures);
+		spotlightShader->SetUniformIntValue("currentSL", i);
+		glBindBuffer(GL_UNIFORM_BUFFER, pbrMaterialHandle);
+		glDrawElements(GL_TRIANGLES, light_cone_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
+		//glDrawElementsInstanced(GL_TRIANGLES, light_cone_mesh_.element_count, GL_UNSIGNED_INT, nullptr, spotlightMatricies.size());
 
-	//	glGenerateMipmap(GL_TEXTURE_2D);
+		spotlightShader->Unbind();
+		glBindVertexArray(0);
 
-	//	shadowDepth_Shader->Unbind();
-	//	glBindVertexArray(0);
-	//	glViewport(0, 0, viewport_size[2], viewport_size[3]);
-
-	//	glDisable(GL_DEPTH_TEST);
-	//	glEnable(GL_CULL_FACE);
-	//	glEnable(GL_STENCIL_TEST);
-	//	glDepthMask(GL_FALSE);
-	//	// --------------------------------------------------------- SHADOWS -----------------------------------------------------------
-
-	//	glBindVertexArray(light_cone_mesh_.vao);	
-	//	
-
-	//	glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
-	//	spotlightShader->Bind();
-	//	spotlightShader->SetUniformMatrix4FValue("model_matrix", model_matrix);
-	//	spotlightShader->SetUniformIntValue("currentSpotLight", i);
-	//	glDrawElements(GL_TRIANGLES, light_cone_mesh_.element_count, GL_UNSIGNED_INT, nullptr);
-	//	spotlightShader->Unbind();
-	//}
-	//
-	
-	//
-	// 
+	}
 
 	
 	

@@ -5,7 +5,7 @@ layout (location = 1) uniform sampler2DRect sampler_world_normal;
 layout (location = 2) uniform sampler2DRect sampler_world_material;
 layout (location = 3) uniform sampler2DArray textureArray;
 layout (location = 4) uniform sampler2D shadowMap;
-
+in vec4 FragPosLightSpace;
 
 
 struct DirectionalLight
@@ -114,7 +114,10 @@ void main(void)
 	if(useTextures && index < 27)
 		final_colour *= texture(textureArray, vec3(uv, pbrMaterials[index].diffuseTextureID)).xyz;
 
-	reflected_light = final_colour;
+
+	float shadow = ShadowCalculation(FragPosLightSpace);
+
+	reflected_light = vec3(shadow, shadow, shadow); //  (1.0 - shadow) * final_colour;
 }
 
 
@@ -127,7 +130,7 @@ float ShadowCalculation(vec4 fragPosLightSpace)
 	// Get depth of current fragment from light's perspective
 	float currentDepth = projCoords.z;
 	// Check whether current frag pos is in shadow
-	float shadow = currentDepth > closestDepth ? 1.0 : 0.0;
+	float shadow = currentDepth < closestDepth ? 1.0 : 0.0;
 	
 	return shadow;
 }
@@ -173,10 +176,20 @@ vec3 SpotLightCalc(vec3 colour)
 	
 	if(attenuation <= 0.0)
 		return vec3(0,0,0);
+ 
+	
+	// Compute smoothed dual-cone effect.
+	//float cosDir = dot(normalize(spot.position - vertexPos), spot.direction);
+	//float spotEffect = smoothstep(cos(spot.coneAngle), cos(spot.coneAngle / 2), cosDir);
+	//spotEffect = intensity;
 
 	// Compute smoothed dual-cone effect.
-	float cosDir = dot(normalize(spot.position - vertexPos), -spot.direction);
+	float cosDir = dot(normalize(vertexPos - spot.position), -spot.direction);
 	float spotEffect = smoothstep(cos(spot.coneAngle), cos(spot.coneAngle / 2), cosDir);
+
+
+	//vec3 L = normalize(lightPosition - vertexPos);
+	//float SpotFactor = dot(L, spot.direction);
 
 	if(spotEffect <= 0.0)
 		return vec3(0,0,0);
@@ -242,29 +255,10 @@ vec3 SpotLightCalc(vec3 colour)
 	// gamma correct
 	finalColour = pow(finalColour, vec3(1.0/2.2)); 
 
-	vec3 final_idv_colour =  finalColour * radiance * attenuation * spotEffect;
+	vec3 final_idv_colour =  finalColour * radiance * attenuation * spotEffect;// (1.0 - (1.0 - SpotFactor) * 1.0/(1.0 - spot.coneAngle));
 	//finalColour += final_idv_colour ;
 	
 	return final_idv_colour ;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 	
 
