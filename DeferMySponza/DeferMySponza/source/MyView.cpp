@@ -92,7 +92,7 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		light.intensity = (const glm::vec3&) spotlightRef[i].getIntensity();
 		light.intensity /= 2;
 		light.range = spotlightRef[i].getRange();
-		light.coneAngle = spotlightRef[i].getConeAngleDegrees();
+		light.coneAngle = glm::radians(spotlightRef[i].getConeAngleDegrees());
 		light.castShadow = spotlightRef[i].getCastShadow();
 
 		lightingData.spotLight[i] = light;
@@ -188,8 +188,8 @@ void MyView::windowViewWillStart(tygra::Window * window)
 			if (spotlightRef[i].getRange() > maxRange)
 				maxRange = spotlightRef[i].getRange();
 		}
-		float radius = maxRange * sin(coneAngle);
-		tsl::IndexedMeshPtr coneMesh = tsl::createConePtr(radius, maxRange, 12);
+		float radius = sin(coneAngle);
+		tsl::IndexedMeshPtr coneMesh = tsl::createConePtr(radius, 1.0f, 12);
 		coneMesh = tsl::cloneIndexedMeshAsTriangleListPtr(coneMesh.get());
 
 		light_cone_mesh_.element_count = coneMesh->indexCount();
@@ -1103,14 +1103,14 @@ void MyView::windowViewRender(tygra::Window * window)
 		glm::mat4 rotationMatrix = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0, 1, 0));
 		rotationMatrix = glm::inverse(rotationMatrix);
 		auto transDir = (const glm::vec3&)spotlightRef[i].getPosition();
-		transDir *= -1;
+		//transDir *= -1;
 		glm::mat4 translationMatrix = glm::mat4(1.0);
 		translationMatrix = glm::translate(translationMatrix, transDir);
-		//glm::mat4 scaleMatrix = glm::mat4(1.0);
-		//scaleMatrix = glm::scale(scaleMatrix, glm::vec3(spotlightRef[i].getRange()));
+		glm::mat4 scaleMatrix = glm::mat4(1.0);
+		scaleMatrix = glm::scale(scaleMatrix, glm::vec3(spotlightRef[i].getRange()));
 
 		glm::mat4 model_matrix = glm::mat4(1.0);
-		model_matrix = translationMatrix * rotationMatrix;// *scaleMatrix;
+		model_matrix = translationMatrix * rotationMatrix *scaleMatrix;
 		spotlightMatricies[i] = model_matrix;
 	}
 	glBindBuffer(GL_ARRAY_BUFFER, spotLightMatrix_vbo);

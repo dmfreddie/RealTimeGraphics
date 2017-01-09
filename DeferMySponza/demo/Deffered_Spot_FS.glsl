@@ -117,7 +117,7 @@ void main(void)
 
 	float shadow = ShadowCalculation(FragPosLightSpace);
 
-	reflected_light = vec3(shadow, shadow, shadow); //  (1.0 - shadow) * final_colour;
+	reflected_light = (1.0 - shadow) * final_colour;
 }
 
 
@@ -129,10 +129,9 @@ float ShadowCalculation(vec4 fragPosLightSpace)
 	float closestDepth = texture(shadowMap, projCoords.xy).r;
 	// Get depth of current fragment from light's perspective
 	float currentDepth = projCoords.z;
+	float bias = 0.005;
 	// Check whether current frag pos is in shadow
-	float shadow = currentDepth < closestDepth ? 1.0 : 0.0;
-	
-	return shadow;
+	return currentDepth - bias > closestDepth ? 1.0 : 0.0;
 }
 
 
@@ -184,7 +183,7 @@ vec3 SpotLightCalc(vec3 colour)
 	//spotEffect = intensity;
 
 	// Compute smoothed dual-cone effect.
-	float cosDir = dot(normalize(vertexPos - spot.position), -spot.direction);
+	float cosDir = dot(normalize(vertexPos - spot.position), spot.direction);
 	float spotEffect = smoothstep(cos(spot.coneAngle), cos(spot.coneAngle / 2), cosDir);
 
 

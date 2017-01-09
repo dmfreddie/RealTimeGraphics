@@ -105,6 +105,13 @@ struct PBRMaterialDataBlock
 	PBRMaterial materials[30];
 };
 
+const glm::mat4 BiasMatrix(
+	0.5, 0.0, 0.0, 0.0,
+	0.0, 0.5, 0.0, 0.0,
+	0.0, 0.0, 0.5, 0.0,
+	0.5, 0.5, 0.5, 1.0
+);
+
 class MyView : public tygra::WindowViewDelegate
 {
 public:
