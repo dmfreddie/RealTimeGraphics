@@ -616,6 +616,9 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	CheckError();
 
+
+	glEnable(GL_MULTISAMPLE);
+
 	return;
 #pragma region SMAA
 
@@ -1088,7 +1091,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	glBindVertexArray(light_sphere_mesh_.vao);
 
 	const auto& directionalLights = scene_->getAllDirectionalLights();
-	for (int i = 0; i < directionalLights.size(); ++i)
+	for (int i = directionalLights.size()-1; i < directionalLights.size(); ++i)
 	{
 		lightingData.directionalLight[i].direction = (const glm::vec3&)directionalLights[i].getDirection();
 		lightingData.directionalLight[i].intensity = (const glm::vec3&)directionalLights[i].getIntensity();
@@ -1102,15 +1105,13 @@ void MyView::windowViewRender(tygra::Window * window)
 
 		glm::mat4 rotationMatrix = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0, 1, 0));
 		rotationMatrix = glm::inverse(rotationMatrix);
-		auto transDir = (const glm::vec3&)spotlightRef[i].getPosition();
-		//transDir *= -1;
+		
 		glm::mat4 translationMatrix = glm::mat4(1.0);
-		translationMatrix = glm::translate(translationMatrix, transDir);
+		translationMatrix = glm::translate(translationMatrix, (const glm::vec3&)spotlightRef[i].getDirection() * lightingData.spotLight[i].range);
 		glm::mat4 scaleMatrix = glm::mat4(1.0);
-		scaleMatrix = glm::scale(scaleMatrix, glm::vec3(spotlightRef[i].getRange()));
+		scaleMatrix = glm::scale(scaleMatrix, glm::vec3(lightingData.spotLight[i].range));
 
-		glm::mat4 model_matrix = glm::mat4(1.0);
-		model_matrix = translationMatrix * rotationMatrix *scaleMatrix;
+		glm::mat4 model_matrix = translationMatrix * rotationMatrix * scaleMatrix;
 		spotlightMatricies[i] = model_matrix;
 	}
 	glBindBuffer(GL_ARRAY_BUFFER, spotLightMatrix_vbo);
