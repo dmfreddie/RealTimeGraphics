@@ -66,6 +66,7 @@ layout(std140) uniform PBRMaterialDataBlock
 };
 
 out vec3 reflected_light;
+
 uniform bool useTextures;
 //int index = 0;
 void main(void)

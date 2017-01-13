@@ -26,6 +26,13 @@ struct DrawElementsIndirectCommand
 	GLuint baseInstance;
 };
 
+struct MeshVertex
+{
+	glm::vec2 uvcoords;
+	glm::vec2 position;
+	
+};
+
 struct Vertex
 {
 	glm::vec3 position;
@@ -184,7 +191,8 @@ private:
 
 	GLuint shadowMapFrameBuffer{ 0 };
 	GLuint shadowmap_tex;
-
+	
+	GLuint aaTexture;
 	GLuint albedo_tex;
 	GLuint edge_tex;
 	GLuint blend_tex;

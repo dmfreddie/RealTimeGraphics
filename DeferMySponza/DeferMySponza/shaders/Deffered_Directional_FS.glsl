@@ -68,6 +68,8 @@ layout(std140) uniform PBRMaterialDataBlock
 
 
 out vec3 reflected_light;
+out vec3 postprocessing;
+
 int materialIndex = 0;
 vec3 vertexPosition;
 vec3 vertexNormal;
@@ -162,6 +164,7 @@ void main(void)
 	
 	
 	reflected_light = final_colour;
+	postprocessing = reflected_light;
 }
 
 // ----------------------------------------------------------------------------
