@@ -222,7 +222,7 @@ private:
 	GLuint diffuse_texture_array_handle;
 	bool useTextures = false;
 
-	bool enableSMAA = true;
+	bool enableSMAA = false;
 
 	const GLuint SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
 };

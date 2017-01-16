@@ -1258,7 +1258,7 @@ void MyView::windowViewRender(tygra::Window * window)
 
 
 	// ----------------------------------------- SPOTLIGHT SHADOWS -------------------------------------------------------
-	for (int i = 0; i < lightingData.maxSpotlights; ++i)
+	for (int i = lightingData.maxSpotlights-1; i < lightingData.maxSpotlights; ++i)
 	{
 
 		glDisable(GL_STENCIL_TEST);
@@ -1274,7 +1274,7 @@ void MyView::windowViewRender(tygra::Window * window)
 
 		glClear(GL_DEPTH_BUFFER_BIT);
 
-		glm::mat4 lightPorjection = glm::perspective(glm::radians(spotlightRef[i].getConeAngleDegrees()), 1.0f, 0.01f, spotlightRef[i].getRange());
+		glm::mat4 lightPorjection = glm::perspective(glm::radians(spotlightRef[i].getConeAngleDegrees()), 1.0f, 0.01f, 1000.0f/*spotlightRef[i].getRange()*/);
 		glm::mat4 lightView = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0.0f, 1.0f, 0.0f));
 		glm::mat4 light_projection_view = lightPorjection * lightView;
 
@@ -1302,8 +1302,11 @@ void MyView::windowViewRender(tygra::Window * window)
 		// ----------------------------------------- SPOTLIGHT SHADOWS -------------------------------------------------------
 
 		glBindVertexArray(light_cone_mesh_.vao);
-
+		
 		spotlightShader->Bind();
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, shadowmap_tex);
+		glUniform1i(glGetUniformLocation(spotlightShader->GetShaderID(), "shadowMap"), 4);
 		spotlightShader->SetUniformMatrix4FValue("projection_view", projection_view);
 		spotlightShader->SetUniformMatrix4FValue("model_matrix_Uniform", spotlightMatricies[i]);
 		spotlightShader->SetUniformMatrix4FValue("lightSpaceMatrixUniform", light_projection_view);
@@ -1422,7 +1425,7 @@ void MyView::windowViewRender(tygra::Window * window)
 
 
 
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, blend_fbo);
+		glBindFramebuffer(GL_READ_FRAMEBUFFER, lbuffer_fbo_);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 		glBlitFramebuffer(0, 0, viewport_size[2], viewport_size[3], 0, 0, viewport_size[2], viewport_size[3], GL_COLOR_BUFFER_BIT, GL_NEAREST);

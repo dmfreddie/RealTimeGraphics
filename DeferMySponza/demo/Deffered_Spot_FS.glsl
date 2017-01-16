@@ -5,7 +5,6 @@ layout (location = 1) uniform sampler2DRect sampler_world_normal;
 layout (location = 2) uniform sampler2DRect sampler_world_material;
 layout (location = 3) uniform sampler2DArray textureArray;
 layout (location = 4) uniform sampler2D shadowMap;
-in vec4 FragPosLightSpace;
 
 
 struct DirectionalLight
@@ -78,7 +77,7 @@ const float PI = 3.14159265359;
 vec3 SpecularLight(vec3 LVector, vec3 diffuse_intensity);
 vec3 DiffuseLight(vec3 lightPosition, vec3 lightIntensity, float attenuation);
 vec3 SpotLightCalc(vec3 colour);
-float ShadowCalculation(vec4 fragPosLightSpace);
+float ShadowCalculation();
 float DistributionGGX(vec3 N, vec3 H, float roughness);
 float GeometrySchlickGGX(float NdotV, float roughness);
 float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness);
@@ -90,7 +89,7 @@ vec3 vertexNormal = vec3(0,0,0);
 int index = 0;
 uniform bool useTextures;
 uniform mat4 lightSpaceMatrix;
-vec4 fraglightspacePos;
+//vec4 fraglightspacePos;
 int materialIndex;
 
 vec3 vertexPosition;
@@ -105,7 +104,7 @@ void main(void)
 	vertexPosition = vertexPos;
 	materialIndex = index;
 	vertexUV = texelFetch(sampler_world_material, ivec2(gl_FragCoord.xy)).rg;
-	fraglightspacePos = lightSpaceMatrix * vec4(vertexPos, 1.0f);
+	//fraglightspacePos = lightSpaceMatrix * vec4(vertexPos, 1.0f);
 
 	vec3 final_colour = SpotLightCalc(vec3(0,0,0));
 
@@ -115,23 +114,31 @@ void main(void)
 		final_colour *= texture(textureArray, vec3(uv, pbrMaterials[index].diffuseTextureID)).xyz;
 
 
-	float shadow = ShadowCalculation(FragPosLightSpace);
+	float shadow = ShadowCalculation();
 
-	reflected_light = (1.0 - shadow) * final_colour;
+	reflected_light = vec3(shadow);// vec3(1 - shadow, 1 - shadow, 1 - shadow); // (1.0 - shadow) * final_colour;
 }
+uniform mat4 lightSpaceMatrixUniform;
 
-
-float ShadowCalculation(vec4 fragPosLightSpace)
+float ShadowCalculation()
 {
+	vec4 fragPosLightSpace = lightSpaceMatrixUniform * vec4(vertexPos, 1.0);
 	// perform perspective divide
-	vec3 projCoords = fraglightspacePos.xyz / fraglightspacePos.w;
-	projCoords = projCoords * 0.5 + 0.5;
+	vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+	projCoords.xy = projCoords.xy * 0.5 + 0.5;
 	float closestDepth = texture(shadowMap, projCoords.xy).r;
+
 	// Get depth of current fragment from light's perspective
 	float currentDepth = projCoords.z;
-	float bias = 0.005;
+	float bias = 0;// .005;
 	// Check whether current frag pos is in shadow
-	return currentDepth > closestDepth ? 1.0 : 0.0;
+
+
+	return smoothstep(0.0, 1.0, currentDepth);
+	return smoothstep(0.0, 1.0, closestDepth);
+
+
+	return  (currentDepth - bias) > closestDepth ? 1.0 : 0.0;
 }
 
 
