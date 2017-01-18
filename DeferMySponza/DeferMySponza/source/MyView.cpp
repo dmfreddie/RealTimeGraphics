@@ -127,25 +127,11 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		vertices[2] = glm::vec2(1, 1);
 		vertices[3] = glm::vec2(-1, 1);
 
-		std::vector<glm::vec2> uvVerts(4);
-		uvVerts[0] = glm::vec2(0, 0);
-		uvVerts[1] = glm::vec2(1, 0);
-		uvVerts[2] = glm::vec2(1, 1);
-		uvVerts[3] = glm::vec2(1, 0);
-
-		std::vector<MeshVertex> meshVerts(4);
-		for (int i = 0; i < 4; ++i)
-		{
-			MeshVertex mv = MeshVertex();
-			mv.position = vertices[i];
-			mv.uvcoords = uvVerts[i];
-		}
-
 		glGenBuffers(1, &light_quad_mesh_.vertex_vbo);
 		glBindBuffer(GL_ARRAY_BUFFER, light_quad_mesh_.vertex_vbo);
 		glBufferData(GL_ARRAY_BUFFER,
-			meshVerts.size() * sizeof(MeshVertex),
-			meshVerts.data(),
+			vertices.size() * sizeof(glm::vec2),
+			vertices.data(),
 			GL_STATIC_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -153,10 +139,10 @@ void MyView::windowViewWillStart(tygra::Window * window)
 		glBindVertexArray(light_quad_mesh_.vao);
 		glBindBuffer(GL_ARRAY_BUFFER, light_quad_mesh_.vertex_vbo);
 		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(MeshVertex), TGL_BUFFER_OFFSET_OF(MeshVertex, uvcoords));
-		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(MeshVertex), TGL_BUFFER_OFFSET_OF(MeshVertex, position));
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE,
+			sizeof(glm::vec2), 0);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
+		glBindVertexArray(0);
 
 #pragma endregion 
 
@@ -862,11 +848,11 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	glBindRenderbuffer(GL_RENDERBUFFER, lbuffer_colour_rbo_);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA32F, width, height);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_RECTANGLE, gbuffer_depth_tex_, 0);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, albedo_tex, 0);
+	//glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, albedo_tex, 0);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, lbuffer_colour_rbo_);
 	
-	GLuint kattachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-	glDrawBuffers(2, kattachments);
+	GLuint kattachments[1] = { GL_COLOR_ATTACHMENT0 };
+	glDrawBuffers(1, kattachments);
 
 	framebuffer_status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	if (framebuffer_status != GL_FRAMEBUFFER_COMPLETE) {
@@ -884,8 +870,9 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	for (int i = 0; i < 4; ++i)
@@ -1256,49 +1243,51 @@ void MyView::windowViewRender(tygra::Window * window)
 	pointLightShader->Unbind();
 	glBindVertexArray(0);
 
-
+	glm::mat4 light_projection_view;
 	// ----------------------------------------- SPOTLIGHT SHADOWS -------------------------------------------------------
-	for (int i = lightingData.maxSpotlights-1; i < lightingData.maxSpotlights; ++i)
+	for (int i = 0; i < lightingData.maxSpotlights; ++i)
 	{
+		if (spotlightRef[i].getCastShadow())
+		{
+			glDisable(GL_STENCIL_TEST);
+			glDisable(GL_CULL_FACE);
+			glDepthMask(GL_TRUE);
+			glDisable(GL_BLEND);
+			glEnable(GL_DEPTH_TEST);
 
-		glDisable(GL_STENCIL_TEST);
-		glDisable(GL_CULL_FACE);
-		glDepthMask(GL_TRUE);
-		glDisable(GL_BLEND);
-		glEnable(GL_DEPTH_TEST);
-
-		glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-		glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFrameBuffer);
+			glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+			glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFrameBuffer);
 
 
 
-		glClear(GL_DEPTH_BUFFER_BIT);
+			glClear(GL_DEPTH_BUFFER_BIT);
 
-		glm::mat4 lightPorjection = glm::perspective(glm::radians(spotlightRef[i].getConeAngleDegrees()), 1.0f, 0.01f, 1000.0f/*spotlightRef[i].getRange()*/);
-		glm::mat4 lightView = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0.0f, 1.0f, 0.0f));
-		glm::mat4 light_projection_view = lightPorjection * lightView;
+			glm::mat4 lightPorjection = glm::perspective(glm::radians(spotlightRef[i].getConeAngleDegrees()), 1.0f, 0.01f, 1000.0f/*spotlightRef[i].getRange()*/);
+			glm::mat4 lightView = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0.0f, 1.0f, 0.0f));
+			light_projection_view = lightPorjection * lightView;
 
-		shadowDepth_Shader->Bind();
+			shadowDepth_Shader->Bind();
 
-		shadowDepth_Shader->SetUniformMatrix4FValue("lightSpaceMatrix", light_projection_view);
+			shadowDepth_Shader->SetUniformMatrix4FValue("lightSpaceMatrix", light_projection_view);
 
-		glBindVertexArray(vao);
-		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
-		glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, (GLsizei)meshes_.size(), 0);
-		glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
-		glBindVertexArray(0);
-		shadowDepth_Shader->Unbind();
+			glBindVertexArray(vao);
+			glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
+			glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, (GLsizei)meshes_.size(), 0);
+			glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+			glBindVertexArray(0);
+			shadowDepth_Shader->Unbind();
 
-		
 
-		
-		glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
-		glViewport(0, 0, viewport_size[2], viewport_size[3]);
-		glDisable(GL_DEPTH_TEST);
-		glEnable(GL_STENCIL_TEST);
-		glEnable(GL_CULL_FACE);
-		glDepthMask(GL_FALSE);
-		glEnable(GL_BLEND);
+
+
+			glBindFramebuffer(GL_FRAMEBUFFER, lbuffer_fbo_);
+			glViewport(0, 0, viewport_size[2], viewport_size[3]);
+			glDisable(GL_DEPTH_TEST);
+			glEnable(GL_STENCIL_TEST);
+			glEnable(GL_CULL_FACE);
+			glDepthMask(GL_FALSE);
+			glEnable(GL_BLEND);
+		}
 		// ----------------------------------------- SPOTLIGHT SHADOWS -------------------------------------------------------
 
 		glBindVertexArray(light_cone_mesh_.vao);
@@ -1421,10 +1410,6 @@ void MyView::windowViewRender(tygra::Window * window)
 	}
 	else
 	{
-
-
-
-
 		glBindFramebuffer(GL_READ_FRAMEBUFFER, lbuffer_fbo_);
 		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);

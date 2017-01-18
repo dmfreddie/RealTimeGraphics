@@ -88,7 +88,8 @@ vec3 vertexPos = vec3(0,0,0);
 vec3 vertexNormal = vec3(0,0,0);
 int index = 0;
 uniform bool useTextures;
-uniform mat4 lightSpaceMatrix;
+uniform mat4 lightSpaceMatrixUniform;
+
 //vec4 fraglightspacePos;
 int materialIndex;
 
@@ -114,14 +115,17 @@ void main(void)
 		final_colour *= texture(textureArray, vec3(uv, pbrMaterials[index].diffuseTextureID)).xyz;
 
 
-	float shadow = ShadowCalculation();
+	float shadow = 0.0;
+	if(spotLight[InstanceID].castShadow)
+		shadow = ShadowCalculation();
 
-	reflected_light = vec3(shadow);// vec3(1 - shadow, 1 - shadow, 1 - shadow); // (1.0 - shadow) * final_colour;
+	reflected_light = (1.0-shadow) * final_colour;
 }
-uniform mat4 lightSpaceMatrixUniform;
 
 float ShadowCalculation()
 {
+	float shadow = 0.0;
+
 	vec4 fragPosLightSpace = lightSpaceMatrixUniform * vec4(vertexPos, 1.0);
 	// perform perspective divide
 	vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
@@ -130,15 +134,24 @@ float ShadowCalculation()
 
 	// Get depth of current fragment from light's perspective
 	float currentDepth = projCoords.z;
-	float bias = 0;// .005;
+	//currentDepth = smoothstep(0.9995, 1.0, currentDepth);
+	float bias = 0.0001;// .005;
 	// Check whether current frag pos is in shadow
 
+	//return smoothstep(0.99, 1.0, closestDepth);
+	vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+	for(int x = -2; x <= 2; ++x)
+	{
+		for(int y = -2; y <= 2; ++y)
+		{
+			float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r; 
+			shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;        
+		}    
+	}
+	//return currentDepth  - bias > closestDepth ? 1.0 : 0.0;// smoothstep(0.9995, 1.0, closestDepth);//smoothstep(0.9995, 1.0, currentDepth) > closestDepth ? 1.0 : 0;
 
-	return smoothstep(0.0, 1.0, currentDepth);
-	return smoothstep(0.0, 1.0, closestDepth);
-
-
-	return  (currentDepth - bias) > closestDepth ? 1.0 : 0.0;
+	shadow /= 16.0;
+	return shadow;
 }
 
 

@@ -68,7 +68,6 @@ layout(std140) uniform PBRMaterialDataBlock
 
 
 out vec3 reflected_light;
-out vec3 postprocessing;
 
 int materialIndex = 0;
 vec3 vertexPosition;
@@ -153,18 +152,15 @@ void main(void)
 		ambient = texture(textureArray, vec3(vertexUV, pbrMat.diffuseTextureID)).xyz * pbrMat.ambientOcclusion;
 
 
-	vec3 colour =/* ambient +*/ Lo;
+	vec3 colour = /*ambient +*/  Lo;
 
 	// HDR tonemapping
 	colour = colour / (colour + vec3(1.0));
 	// gamma correct
 	colour = pow(colour, vec3(1.0/2.2)); 
-
-	final_colour = colour;
 	
 	
-	reflected_light = final_colour;
-	postprocessing = reflected_light;
+	reflected_light = colour;
 }
 
 // ----------------------------------------------------------------------------

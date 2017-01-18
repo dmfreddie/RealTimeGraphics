@@ -1,7 +1,6 @@
 #version 440
 
-layout(location = 0) in vec2 uvCoords;
-layout(location = 1) in vec2 vertex_position;
+in vec2 vertex_position;
 
 void main(void)
 {
