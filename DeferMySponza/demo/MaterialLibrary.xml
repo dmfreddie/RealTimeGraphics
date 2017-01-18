@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<MaterialDatabase>
+	<Textures count="14">
+		<Texture id="0" diffuse="Sponza/vase_dif.png"/>
+		<Texture id="1" diffuse="Sponza/Hook.png"/>
+		<Texture id="2" diffuse="Sponza/sponza_thorn_diff.png"/>
+		<Texture id="3" diffuse="Sponza/lion.png"/>
+		<Texture id="4" diffuse="Sponza/vase_round.png"/>
+		<Texture id="5" diffuse="Sponza/background.png"/>
+		<Texture id="6" diffuse="Sponza/flagPole.png"/>
+		<Texture id="7" diffuse="Sponza/spnza_bricks_a_diff.png"/>
+		<Texture id="8" diffuse="Sponza/sponza_floor_a_diff.png"/>
+		<Texture id="9" diffuse="Sponza/sponza_fabric_green_diff.png"/>
+		<Texture id="10" diffuse="Sponza/sponza_roof_diff.png"/>
+		<Texture id="11" diffuse="Sponza/sponza_flagpole_diff.png"/>
+		<Texture id="12" diffuse="Sponza/chain_texture.png"/>
+		<Texture id="13" diffuse="Sponza/sponza_curtain_diff.png"/>
+	</Textures>
+	<Materials count="30">
+		<Material id="0" diffuseID="0" roughness="0.5" ao="0.5" metallic="0.1" />
+		<Material id="1" diffuseID="1" roughness="0.5" ao="0.5" metallic="0.75" />
+		<Material id="2" diffuseID="2" roughness="0.5" ao="0.5" metallic="0.2" />
+		<Material id="3" diffuseID="3" roughness="0.5" ao="0.5" metallic="0.1" />
+		<Material id="4" diffuseID="4" roughness="0.5" ao="0.5" metallic="0.1" />
+		<Material id="5" diffuseID="2" roughness="0.5" ao="0.5" metallic="0.05" />
+		<Material id="6" diffuseID="5" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="7" diffuseID="6" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="8" diffuseID="2" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="9" diffuseID="7" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="10" diffuseID="2" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="11" diffuseID="8" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="12" diffuseID="9" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="13" diffuseID="10" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="14" diffuseID="11" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="15" diffuseID="2" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="16" diffuseID="7" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="17" diffuseID="7" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="18" diffuseID="2" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="19" diffuseID="12" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="20" diffuseID="4" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="21" diffuseID="2" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="22" diffuseID="2" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="23" diffuseID="2" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="24" diffuseID="13" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="25" diffuseID="10" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="26" diffuseID="2" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="27" diffuseID="0" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="28" diffuseID="0" roughness="0.5" ao="0.5" metallic="0.5" />
+		<Material id="29" diffuseID="0" roughness="0.5" ao="0.5" metallic="0.5" />
+	</Materials>
+</MaterialDatabase>

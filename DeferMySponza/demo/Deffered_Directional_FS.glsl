@@ -152,7 +152,7 @@ void main(void)
 		ambient = texture(textureArray, vec3(vertexUV, pbrMat.diffuseTextureID)).xyz * pbrMat.ambientOcclusion;
 
 
-	vec3 colour = /*ambient +*/  Lo;
+	vec3 colour = ambient * Lo;
 
 	// HDR tonemapping
 	colour = colour / (colour + vec3(1.0));

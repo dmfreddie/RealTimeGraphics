@@ -10,71 +10,9 @@
 
 #include "Shader.h"
 #include <map>
-
-
-#define AREATEX_WIDTH 160
-#define AREATEX_HEIGHT 560
-#define SEARCHTEX_WIDTH 66
-#define SEARCHTEX_HEIGHT 33
-
-struct DrawElementsIndirectCommand
-{
-	GLuint vertexCount;
-	GLuint instanceCount;
-	GLuint firstVertex;
-	GLuint baseVertex;
-	GLuint baseInstance;
-};
-
-struct MeshVertex
-{
-	glm::vec2 uvcoords;
-	glm::vec2 position;
-	
-};
-
-struct Vertex
-{
-	glm::vec3 position;
-	glm::vec3 normal;
-	glm::vec2 texcoord;
-
-};
-
-struct MeshGL
-{
-	GLuint first_element_index;
-	GLuint element_count;
-	GLuint first_vertex_index;
-};
-
-
-
-struct DirectionalLight
-{
-	glm::vec3 direction;
-	float padding1;
-	glm::vec3 intensity;
-	float padding2;
-};
-
-struct PointLight
-{
-	glm::vec3 position;
-	float range;
-	glm::vec3 intensity;
-	float padding;
-};
-
-struct SpotLight
-{
-	glm::vec3 position;
-	float range;
-	glm::vec3 direction;
-	float coneAngle;
-	glm::vec3 intensity;
-	bool castShadow;
-};
+#include "Light.hpp"
+#include "Mesh.hpp"
+#include "Material.hpp"
 
 struct AmbientLightBlock
 {
@@ -94,23 +32,6 @@ struct DataBlock
 	float maxSpotlights;
 };
 
-struct PBRMaterial
-{
-	glm::vec3 diffuseColour;
-	float metallic;
-	glm::vec3 specularColour;
-	float roughness = 0.5f;
-	float vertexShineyness ;
-	float ambientOcclusion;
-	int diffuseTextureID;
-	float padding = 0.0f;
-};
-
-
-struct PBRMaterialDataBlock
-{
-	PBRMaterial materials[30];
-};
 
 const glm::mat4 BiasMatrix(
 	0.5, 0.0, 0.0, 0.0,
@@ -118,6 +39,13 @@ const glm::mat4 BiasMatrix(
 	0.0, 0.0, 0.5, 0.0,
 	0.5, 0.5, 0.5, 1.0
 );
+
+struct MaterialDatabase
+{
+	std::vector<PBRMaterial> materials;
+	std::vector<std::string> textures;
+	int materialCount, textureCount;
+};
 
 class MyView : public tygra::WindowViewDelegate
 {
@@ -132,7 +60,11 @@ public:
 	void Stop(tygra::Window* window);
 	void UseTextures(const bool useTextures_);
 	const bool UseTextures() const;
+	void EnableShadows(const bool enableShadows_);
+	const bool ShadowStatus() const;
+
 private:
+	MaterialDatabase LoadMaterialDatabase(const char* path);
 
     void windowViewWillStart(tygra::Window * window) override;
 
@@ -185,30 +117,18 @@ private:
 	GLuint gbuffer_material_tex_{ 0 };
 
 	GLuint gbuffer_fbo_{ 0 };
-
+ 
 	GLuint lbuffer_fbo_{ 0 };
 	GLuint lbuffer_colour_rbo_{ 0 };
 
 	GLuint shadowMapFrameBuffer{ 0 };
 	GLuint shadowmap_tex;
 	
-	GLuint aaTexture;
-	GLuint albedo_tex;
-	GLuint edge_tex;
-	GLuint blend_tex;
-	GLuint area_tex;
-	GLuint search_tex;
-
-	GLuint albedo_fbo;
-	GLuint albedo_rbo;
-	GLuint edge_fbo;
-	GLuint edge_rbo;
-	GLuint blend_fbo;
-	GLuint blend_rbo;
 #pragma endregion 
 
 #pragma  region Shaders
-	Shader *gbufferShadr, *ambientLightShader, *pointLightShader, *directionalLightShader, *spotlightShader, *edge_shader, *blend_shader, *neighborhood_shader, *shadowDepth_Shader;
+	Shader *gbufferShadr, *ambientLightShader, *pointLightShader, *directionalLightShader, *spotlightShader, *shadowDepth_Shader;
+	//Shader* shaders[6] = { gbufferShadr, ambientLightShader, pointLightShader, directionalLightShader, spotlightShader, shadowDepth_Shader };
 #pragma endregion 
 
 	DataBlock lightingData; 
@@ -221,8 +141,6 @@ private:
 
 	GLuint diffuse_texture_array_handle;
 	bool useTextures = false;
-
-	bool enableSMAA = false;
-
+	bool enableShadows = false;
 	const GLuint SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
 };

@@ -125,6 +125,9 @@ void MyController::windowControlKeyboardChanged(tygra::Window * window,
     case tygra::kWindowKeyF2:
         scene_->toggleCameraAnimation();
         break;
+	case tygra::kWindowKeyF3:
+		view_->EnableShadows(!view_->ShadowStatus());
+		break;
 	case tygra::kWindowKeyEsc:
 		view_->Stop(window);
 		window->close();

@@ -9,10 +9,8 @@
 #include <iostream>
 #include <vector>
 #include <cassert>
+#include "pugixml.hpp"
 
-// SMAA adapted from: https://github.com/scrawl/smaa-opengl
-#define SMAA_GLSL_4 1
-#include "smaa_glsl.h"
 
 MyView::MyView()
 {
@@ -39,6 +37,55 @@ void MyView::UseTextures(const bool useTextures_)
 const bool MyView::UseTextures() const
 {
 	return useTextures;
+}
+
+void MyView::EnableShadows(const bool enableShadows_)
+{
+	enableShadows = enableShadows_;
+}
+
+const bool MyView::ShadowStatus() const
+{
+	return enableShadows;
+}
+
+MaterialDatabase MyView::LoadMaterialDatabase(const char* path)
+{
+	pugi::xml_document doc;
+	pugi::xml_parse_result result = doc.load_file(path);
+	MaterialDatabase database;
+	const std::string contentStringHead = "content:///";
+	if (result)
+	{
+		pugi::xml_node root = doc.first_child();
+		database.textureCount = root.child("Textures").attribute("count").as_int();
+		database.textures.reserve(sizeof(std::string) * database.textureCount);
+		for (pugi::xml_node texture = root.child("Textures").child("Texture"); texture; texture = texture.next_sibling("Texture"))
+			database.textures.push_back(contentStringHead + texture.attribute("diffuse").as_string());
+
+		database.materialCount = root.child("Materials").attribute("count").as_int();
+		database.materials.reserve(sizeof(PBRMaterial) * database.materialCount);
+
+		
+		for (pugi::xml_node material = root.child("Materials").child("Material"); material; material = material.next_sibling("Material"))
+		{
+			PBRMaterial mat;
+			mat.metallic = material.attribute("metallic").as_float();
+			mat.ambientOcclusion = material.attribute("ao").as_float();
+			mat.roughness = material.attribute("roughness").as_float();
+			mat.diffuseTextureID = material.attribute("diffuseID").as_float();
+			database.materials.push_back(mat);
+		}
+
+	}
+	else
+	{
+		std::cout << "XML [" << path << "] parsed with errors, attr value: [" << doc.child("node").attribute("attr").value() << "]\n";
+		std::cout << "Error description: " << result.description() << "\n";
+		std::cout << "Error offset: " << result.offset << " (error at [..." << (path + result.offset) << "]\n\n";
+	}
+
+	return database;
 }
 
 void MyView::windowViewWillStart(tygra::Window * window)
@@ -229,12 +276,15 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	ambientLightShader->Unbind();
 #pragma endregion
 
+
+	MaterialDatabase matDatabase = LoadMaterialDatabase("MaterialLibrary.xml");
+
 #pragma region TextureArrays
 
-	std::vector<std::string> diffuseTextureNames;
+	//std::vector<std::string> diffuseTextureNames;
 
 	
-	diffuseTextureNames.push_back("content:///vase_dif.png");			// 0
+	/*diffuseTextureNames.push_back("content:///vase_dif.png");			// 0
 	diffuseTextureNames.push_back("content:///Hook.png");				// 1
 	diffuseTextureNames.push_back("content:///sponza_thorn_diff.png");	// 2
 	diffuseTextureNames.push_back("content:///lion.png");				// 3
@@ -247,9 +297,9 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	diffuseTextureNames.push_back("content:///sponza_roof_diff.png");	// 10
 	diffuseTextureNames.push_back("content:///sponza_flagpole_diff.png");// 11
 	diffuseTextureNames.push_back("content:///chain_texture.png");		// 12
-	diffuseTextureNames.push_back("content:///sponza_curtain_diff.png");// 13
+	diffuseTextureNames.push_back("content:///sponza_curtain_diff.png");// 13*/
 
-	LoadTextureArray(diffuseTextureNames, ambientLightShader, diffuse_texture_array_handle, "textureArray");
+	LoadTextureArray(matDatabase.textures, ambientLightShader, diffuse_texture_array_handle, "textureArray");
 	SetFromExisteingTextureArray(diffuse_texture_array_handle, directionalLightShader, "textureArray");
 	SetFromExisteingTextureArray(diffuse_texture_array_handle, pointLightShader, "textureArray");
 	SetFromExisteingTextureArray(diffuse_texture_array_handle, spotlightShader, "textureArray");
@@ -323,14 +373,17 @@ void MyView::windowViewWillStart(tygra::Window * window)
 			pbrMaterials.push_back(pbrMat);
 		}
 
-		pbrMaterialData.materials[materialIDCount] = pbrMaterials[counter];
+		//pbrMaterialData.materials[materialIDCount] = pbrMaterials[counter];
+		matDatabase.materials[materialIDCount].diffuseColour = pbrMaterials[counter].diffuseColour;
+		matDatabase.materials[materialIDCount].specularColour = pbrMaterials[counter].specularColour;
+		matDatabase.materials[materialIDCount].vertexShineyness = pbrMaterials[counter].vertexShineyness;
 		counter += (int)instances.size();
 		materialIDCount++;
 
 	}
 
 	// Set the materials diffuse texture id to the corresponsing texture
-	pbrMaterialData.materials[0].diffuseTextureID = 0;
+	/*pbrMaterialData.materials[0].diffuseTextureID = 0;
 	pbrMaterialData.materials[1].diffuseTextureID = 1;
 	pbrMaterialData.materials[2].diffuseTextureID = 2;
 	pbrMaterialData.materials[3].diffuseTextureID = 3;
@@ -362,12 +415,14 @@ void MyView::windowViewWillStart(tygra::Window * window)
 
 	for(int i = 0; i < 30; ++i)
 	{
-		//pbrMaterialData.materials[i] = materialData.materials[i];
 		pbrMaterialData.materials[i].roughness = 0.5f;
 		pbrMaterialData.materials[i].ambientOcclusion = 0.5f;
 		pbrMaterialData.materials[i].metallic = 0.5f;
 	}
-	
+	*/
+	/*for (int i = 0; i < 30; ++i)
+		pbrMaterialData.materials[i] = matDatabase.materials[i];*/
+
 	CheckError();
 	
 	glGenBuffers(1, &vertex_vbo);
@@ -545,12 +600,6 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glGenTextures(1, &gbuffer_normal_tex_);
 	glGenTextures(1, &gbuffer_depth_tex_);
 	glGenTextures(1, &gbuffer_material_tex_);
-	glGenTextures(1, &albedo_tex);
-	glGenTextures(1, &edge_tex);
-	glGenTextures(1, &blend_tex);
-	glGenTextures(1, &area_tex);
-	glGenTextures(1, &search_tex);
-	glGenTextures(1, &aaTexture);
 
 	glGenFramebuffers(1, &gbuffer_fbo_);
 
@@ -570,6 +619,14 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glGenBuffers(1, &lightDataUBO);
 	glBindBuffer(GL_UNIFORM_BUFFER, lightDataUBO);
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(DataBlock), &lightingData, GL_STREAM_DRAW);
+
+	/*for(const auto& shader : shaders)
+	{
+		shader->Bind();
+		glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightDataUBO);
+		glUniformBlockBinding(shader->GetShaderID(), glGetUniformBlockIndex(shader->GetShaderID(), "DataBlock"), 0);
+		shader->Unbind();
+	}*/
 
 	ambientLightShader->Bind();
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightDataUBO);
@@ -621,31 +678,6 @@ void MyView::windowViewWillStart(tygra::Window * window)
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 #pragma endregion 
 
-	CheckError();
-
-
-
-#pragma region SMAA
-
-	edge_shader = new Shader(edge_vs.c_str(), edge_ps.c_str(), true);
-	edge_shader->Bind();
-	edge_shader->SetUniformIntValue("albedo_tex", 0);
-	edge_shader->Unbind();
-
-
-	blend_shader = new Shader(blend_vs.c_str(), blend_ps.c_str(), true);
-	blend_shader->Bind();
-	blend_shader->SetUniformIntValue("albedo_tex", 0);
-	blend_shader->SetUniformIntValue("area_tex", 1);
-	blend_shader->SetUniformIntValue("search_tex", 2);
-	blend_shader->Unbind();
-
-	neighborhood_shader = new Shader(neighborhood_vs.c_str(), neighborhood_ps.c_str(), true);
-	neighborhood_shader->Bind();
-	neighborhood_shader->SetUniformIntValue("albedo_tex", 0);
-	neighborhood_shader->SetUniformIntValue("blend_tex", 1);
-	neighborhood_shader->Unbind();
-#pragma  endregion 
 	CheckError();
 }
 
@@ -780,34 +812,6 @@ void MyView::windowViewDidReset(tygra::Window * window,
 	glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glBindTexture(GL_TEXTURE_RECTANGLE, 0);
 	CheckError();
-	//glEnable(GL_TEXTURE_2D);
-
-	CheckError();
-	glBindTexture(GL_TEXTURE_2D, albedo_tex);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	CheckError();
-	glBindTexture(GL_TEXTURE_2D, edge_tex);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-	CheckError();
-	glBindTexture(GL_TEXTURE_2D, blend_tex);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-
-	CheckError();
 
 	Shader* shaders[4] = { ambientLightShader, directionalLightShader, spotlightShader, pointLightShader };
 	for(int i = 0; i < 4; ++i)
@@ -901,131 +905,15 @@ void MyView::windowViewDidReset(tygra::Window * window,
 #pragma endregion
 
 
-#pragma region SMAA
-
-
-	
-
-	unsigned char* buffer = 0;
-	FILE* f = 0;
-
-	buffer = new unsigned char[1024 * 1024];
-	f = fopen("smaa_area.raw", "rb"); //rb stands for "read binary file"
-
-	if (!f)
-	{
-		std::cerr << "Couldn't open smaa_area.raw.\n";
-		exit(1);
-	}
-
-	fread(buffer, AREATEX_WIDTH * AREATEX_HEIGHT * 2, 1, f);
-	fclose(f);
-
-	f = 0;
-
-	glGenTextures(1, &area_tex);
-	glBindTexture(GL_TEXTURE_2D, area_tex);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RG8, (GLsizei)AREATEX_WIDTH, (GLsizei)AREATEX_HEIGHT, 0, GL_RG, GL_UNSIGNED_BYTE, buffer);
-
-
-	f = fopen("smaa_search.raw", "rb");
-
-	if (!f)
-	{
-		std::cerr << "Couldn't open smaa_search.raw.\n";
-		exit(1);
-	}
-
-	fread(buffer, SEARCHTEX_WIDTH * SEARCHTEX_HEIGHT, 1, f);
-	fclose(f);
-
-	f = 0;
-
-	glGenTextures(1, &search_tex);
-	glBindTexture(GL_TEXTURE_2D, search_tex);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RG8, (GLsizei)AREATEX_WIDTH, (GLsizei)AREATEX_HEIGHT, 0, GL_RG, GL_UNSIGNED_BYTE, buffer);
-
-
-	GLenum modes[] = { GL_COLOR_ATTACHMENT0 };
-
-	glGenFramebuffers(1, &albedo_fbo);
-	glGenRenderbuffers(1, &albedo_rbo);
-	glBindFramebuffer(GL_FRAMEBUFFER, albedo_fbo);
-	glBindRenderbuffer(GL_RENDERBUFFER, albedo_rbo);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA32F, width, height);
-	glDrawBuffers(1, modes);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, albedo_tex, 0);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, albedo_rbo);
-
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-	{
-		std::cerr << "FBO not complete.\n";
-		exit(1);
-	}
-
-	glGenFramebuffers(1, &edge_fbo);
-	glGenRenderbuffers(1, &edge_rbo);
-	glBindFramebuffer(GL_FRAMEBUFFER, edge_fbo);
-	glBindRenderbuffer(GL_RENDERBUFFER, edge_rbo);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA32F, width, height);
-	glDrawBuffers(1, modes);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, edge_tex, 0);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, edge_rbo);
-
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-	{
-		std::cerr << "FBO not complete.\n";
-		exit(1);
-	}
-
-	glGenFramebuffers(1, &blend_fbo);
-	glGenRenderbuffers(1, &blend_rbo);
-	glBindFramebuffer(GL_FRAMEBUFFER, blend_fbo);
-	glBindRenderbuffer(GL_RENDERBUFFER, blend_rbo);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA32F, width, height);
-	glDrawBuffers(1, modes);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, blend_tex, 0);
-	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, blend_rbo);
-
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-	{
-		std::cerr << "FBO not complete.\n";
-		exit(1);
-	}
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	glBindTexture(GL_TEXTURE_2D, 0);
-
-
-#pragma endregion 
-
 }
 
 void MyView::windowViewDidStop(tygra::Window * window)
 {
-	/*delete gbufferShadr;
-	delete ambientLightShader;
-	delete directionalLightShader;
-	delete pointLightShader;
-	delete spotlightShader;
-	delete edge_shader;
-	delete blend_shader;
-	delete neighborhood_shader;*/
-
 	GLuint vaos[4] = { vao , light_quad_mesh_.vao, light_sphere_mesh_.vao, light_cone_mesh_.vao };
-	GLuint textures[9] = { gbuffer_position_tex_, gbuffer_normal_tex_, gbuffer_material_tex_, gbuffer_depth_tex_, albedo_tex, edge_tex, blend_tex, area_tex, search_tex }; 
+	GLuint textures[9] = { gbuffer_position_tex_, gbuffer_normal_tex_, gbuffer_material_tex_, gbuffer_depth_tex_ }; 
 	GLuint buffer[6] = { vertex_vbo, element_vbo, instance_vbo, material_vbo, commandBuffer, lightDataUBO};
-	GLuint rbos[4] = {lbuffer_colour_rbo_, edge_rbo, blend_rbo, albedo_rbo};
-	GLuint fbos[5]{lbuffer_fbo_, gbuffer_fbo_, edge_fbo, blend_fbo, albedo_fbo};
+	GLuint rbos[2] = {lbuffer_colour_rbo_};
+	GLuint fbos[2]{lbuffer_fbo_, gbuffer_fbo_};
 	glDeleteVertexArrays(4, vaos);
 	glDeleteFramebuffers(5, fbos);
 	glDeleteRenderbuffers(4, rbos);
@@ -1037,8 +925,8 @@ void MyView::windowViewRender(tygra::Window * window)
 {
 	assert(scene_ != nullptr);
 
-	// glClearColor(0.29f, 0.f, 0.51f, 0.f);
-	glClearColor(0.f, 0.f, 0.f, 0.f);
+	glClearColor(0.29f, 0.f, 0.51f, 0.f);
+	//glClearColor(0.f, 0.f, 0.f, 0.f);
 
 	GLint viewport_size[4];
 	glGetIntegerv(GL_VIEWPORT, viewport_size);
@@ -1053,9 +941,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	glBindFramebuffer(GL_FRAMEBUFFER, gbuffer_fbo_);
 	glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-
-
-
+	
 
 #pragma region Update data changed this frame
 	glBindVertexArray(vao);
@@ -1110,7 +996,7 @@ void MyView::windowViewRender(tygra::Window * window)
 	{
 		lightingData.spotLight[i].position = (const glm::vec3&) spotlightRef[i].getPosition();
 		lightingData.spotLight[i].direction = (const glm::vec3&) spotlightRef[i].getDirection();
-
+		lightingData.spotLight[i].castShadow = enableShadows && spotlightRef[i].getCastShadow();
 		glm::mat4 rotationMatrix = glm::lookAt((const glm::vec3&)spotlightRef[i].getPosition(), (const glm::vec3&)spotlightRef[i].getPosition() + (const glm::vec3&)spotlightRef[i].getDirection(), glm::vec3(0, 1, 0));
 		rotationMatrix = glm::inverse(rotationMatrix);
 		
@@ -1159,37 +1045,6 @@ void MyView::windowViewRender(tygra::Window * window)
 
 	gbufferShadr->Unbind();
 
-	//// --------------------------------------------------------- SHADOWS -----------------------------------------------------------
-	/*glDisable(GL_STENCIL_TEST);
-	glEnable(GL_DEPTH_TEST);
-	glDisable(GL_CULL_FACE);
-	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
-	glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFrameBuffer);
-	glClear(GL_DEPTH_BUFFER_BIT);
-
-	glm::mat4 lightPorjection = glm::perspective(glm::radians(spotlightRef[0].getConeAngleDegrees()), 1.0f, 0.01f, spotlightRef[0].getRange());
-	glm::mat4 lightView = glm::lookAt((const glm::vec3&)spotlightRef[0].getPosition(), (const glm::vec3&)spotlightRef[0].getPosition() + (const glm::vec3&)spotlightRef[0].getDirection(), glm::vec3(0.0f, 1.0f, 0.0f));
-	glm::mat4 light_projection_view = lightPorjection * lightView;
-
-	shadowDepth_Shader->Bind();
-
-	shadowDepth_Shader->SetUniformMatrix4FValue("lightSpaceMatrix", light_projection_view);
-	glBindVertexArray(vao);
-	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, commandBuffer);
-	glMultiDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, (GLsizei)meshes_.size(), 0);
-	glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
-	glBindVertexArray(0);
-	shadowDepth_Shader->Unbind();
-
-	glViewport(0, 0, viewport_size[2], viewport_size[3]);
-
-	glDisable(GL_DEPTH_TEST);
-	glEnable(GL_STENCIL_TEST);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glEnable(GL_BLEND);
-	glEnable(GL_CULL_FACE);
-	*/
-	//// --------------------------------------------------------- SHADOWS -----------------------------------------------------------
 	// --------------------------------------------------------- LIGHTING -----------------------------------------------------------
 
 
@@ -1322,97 +1177,9 @@ void MyView::windowViewRender(tygra::Window * window)
 
 
 
-	//glBindFramebuffer(GL_READ_FRAMEBUFFER, lbuffer_fbo_);
-	//glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-	//glBlitFramebuffer(0, 0, viewport_size[2], viewport_size[3], 0, 0, viewport_size[2], viewport_size[3], GL_COLOR_BUFFER_BIT, GL_NEAREST);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, lbuffer_fbo_);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBlitFramebuffer(0, 0, viewport_size[2], viewport_size[3], 0, 0, viewport_size[2], viewport_size[3], GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
 
-
-	if (enableSMAA)
-	{
-
-
-		// SMAA EDGE PASS
-		//glBindFramebuffer(GL_READ_FRAMEBUFFER, lbuffer_fbo_);
-		//glBindFramebuffer(GL_DRAW_FRAMEBUFFER, edge_fbo);
-		//glBlitFramebuffer(0, 0, viewport_size[2], viewport_size[3], 0, 0, viewport_size[2], viewport_size[3], GL_COLOR_BUFFER_BIT, GL_NEAREST);
-		//glClearColor(0, 0, 0, 0);
-		//glClear(GL_COLOR_BUFFER_BIT);
-		glBindFramebuffer(GL_FRAMEBUFFER, edge_fbo);
-		edge_shader->Bind();
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, albedo_tex);
-
-		glBindVertexArray(light_quad_mesh_.vao);
-		glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-		glBindVertexArray(0);
-
-		edge_shader->Unbind();
-
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-
-		// SMAA BLEND WEIGHT PASS
-
-//		glBindFramebuffer(GL_FRAMEBUFFER, blend_fbo);
-
-		glBindFramebuffer(GL_FRAMEBUFFER, blend_fbo);
-
-		//glBlitFramebuffer(0, 0, viewport_size[2], viewport_size[3], 0, 0, viewport_size[2], viewport_size[3], GL_COLOR_BUFFER_BIT, GL_NEAREST);
-
-		//glClearColor(0, 0, 0, 0);
-		//glClear(GL_COLOR_BUFFER_BIT);
-
-		blend_shader->Bind();
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, edge_tex);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, area_tex);
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, search_tex);
-
-		/*glBindVertexArray(light_quad_mesh_.vao);
-		glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-		glBindVertexArray(0);*/
-
-		blend_shader->Unbind();
-
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-
-		// SMAA NEIGHBORHOOD BLEND PASS
-
-		neighborhood_shader->Bind();
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, albedo_tex);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, blend_tex);
-
-		glEnable(GL_FRAMEBUFFER_SRGB);
-
-		glBindVertexArray(light_quad_mesh_.vao);
-		glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-		glBindVertexArray(0);
-
-		glDisable(GL_FRAMEBUFFER_SRGB);
-
-		neighborhood_shader->Unbind();
-
-		//glActiveTexture(GL_TEXTURE0);
-		//glBindTexture(GL_TEXTURE_2D, albedo_tex);
-		//glBindVertexArray(light_quad_mesh_.vao);
-		//glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-		//glBindVertexArray(0);
-
-	}
-	else
-	{
-		glBindFramebuffer(GL_READ_FRAMEBUFFER, lbuffer_fbo_);
-		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-		glBindBuffer(GL_UNIFORM_BUFFER, 0);
-		glBlitFramebuffer(0, 0, viewport_size[2], viewport_size[3], 0, 0, viewport_size[2], viewport_size[3], GL_COLOR_BUFFER_BIT, GL_NEAREST);
-	}
 }

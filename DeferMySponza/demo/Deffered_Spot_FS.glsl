@@ -148,7 +148,6 @@ float ShadowCalculation()
 			shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;        
 		}    
 	}
-	//return currentDepth  - bias > closestDepth ? 1.0 : 0.0;// smoothstep(0.9995, 1.0, closestDepth);//smoothstep(0.9995, 1.0, currentDepth) > closestDepth ? 1.0 : 0;
 
 	shadow /= 16.0;
 	return shadow;

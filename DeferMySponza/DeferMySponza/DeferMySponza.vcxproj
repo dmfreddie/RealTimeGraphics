@@ -316,19 +316,21 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="C:\Users\fredd\Downloads\pugixml-1.8\pugixml-1.8\src\pugixml.cpp" />
     <ClCompile Include="source\main.cpp" />
     <ClCompile Include="source\MyController.cpp" />
     <ClCompile Include="source\MyView.cpp" />
     <ClCompile Include="source\Shader.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="source\AreaTex.h" />
+    <ClInclude Include="Material.hpp" />
+    <ClInclude Include="Mesh.hpp" />
+    <ClInclude Include="source\Light.hpp" />
     <ClInclude Include="source\MyController.hpp" />
     <ClInclude Include="source\MyView.hpp" />
-    <ClInclude Include="source\SearchTex.h" />
+    <ClInclude Include="source\pugiconfig.hpp" />
+    <ClInclude Include="source\pugixml.hpp" />
     <ClInclude Include="source\Shader.h" />
-    <ClInclude Include="source\SMAA.h" />
-    <ClInclude Include="source\smaa_glsl.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\Deffered_Ambient_FS.glsl" />
