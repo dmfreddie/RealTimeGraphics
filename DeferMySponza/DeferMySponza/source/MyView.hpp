@@ -11,12 +11,6 @@
 #include "Shader.h"
 #include <map>
 
-
-#define AREATEX_WIDTH 160
-#define AREATEX_HEIGHT 560
-#define SEARCHTEX_WIDTH 66
-#define SEARCHTEX_HEIGHT 33
-
 struct DrawElementsIndirectCommand
 {
 	GLuint vertexCount;
@@ -191,24 +185,11 @@ private:
 
 	GLuint shadowMapFrameBuffer{ 0 };
 	GLuint shadowmap_tex;
-	
-	GLuint aaTexture;
-	GLuint albedo_tex;
-	GLuint edge_tex;
-	GLuint blend_tex;
-	GLuint area_tex;
-	GLuint search_tex;
 
-	GLuint albedo_fbo;
-	GLuint albedo_rbo;
-	GLuint edge_fbo;
-	GLuint edge_rbo;
-	GLuint blend_fbo;
-	GLuint blend_rbo;
 #pragma endregion 
 
 #pragma  region Shaders
-	Shader *gbufferShadr, *ambientLightShader, *pointLightShader, *directionalLightShader, *spotlightShader, *edge_shader, *blend_shader, *neighborhood_shader, *shadowDepth_Shader;
+	Shader *gbufferShadr, *ambientLightShader, *pointLightShader, *directionalLightShader, *spotlightShader, *shadowDepth_Shader;
 #pragma endregion 
 
 	DataBlock lightingData; 
@@ -222,7 +203,6 @@ private:
 	GLuint diffuse_texture_array_handle;
 	bool useTextures = false;
 
-	bool enableSMAA = false;
 
 	const GLuint SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
 };
